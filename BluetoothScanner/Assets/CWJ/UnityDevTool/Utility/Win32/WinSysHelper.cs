@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 using UnityEngine;
 
@@ -75,7 +76,7 @@ namespace CWJ
 
         static bool isInit_MyWindowHandleMain = false;
         static IntPtr _MyWindowHandleMain;
-
+        const string WindowHandle_Default_IME="Default IME";
         public static IntPtr MyWindowHandleMain
         {
             get
@@ -88,10 +89,35 @@ namespace CWJ
                         throw new NullReferenceException("Process is Null");
                     }
 
-                    //_MyWindowHandle = MyProcess.MainWindowHandle;
-                    _MyWindowHandleMain = FindWindow(null, SystemUtil.IsServerBuild ? MyProcess.MainModule.FileName : GetMyAppName());
-                    //server build 모드에서는 console창을 window handle로 가져오기 위해 file실행경로를 윈도우타이틀 이름으로 넣어줌
                     isInit_MyWindowHandleMain = true;
+
+                    string appName = GetMyAppName();
+                    int index= !SystemUtil.IsServerBuild ? 
+                        MyWindowHandles.FindIndex(wh => GetWindowTitleText(wh).Equals(appName))
+                        : MyWindowHandles.FindIndex(wh =>
+                        {
+                            string title = GetWindowTitleText(wh);
+                            return !title.Equals(appName) && !title.Equals(WindowHandle_Default_IME); 
+                            //한글일경우 타이틀이름을 못가져오는경우가 생겨서
+                            //"Default IME" 가 아니고, AppName과 같지않은 한개가 콘솔일거라고 추측하여 가져옴. 문제시 다른 방법 찾아야함 귀찮음.
+                        });
+
+                    if (index >= 0)
+                    {
+                        return _MyWindowHandleMain = MyWindowHandles[index];
+                    }
+                    else
+                    {
+                        UnityEngine.Debug.LogError("WindowHandle : NotFound");
+                        throw new EntryPointNotFoundException("Process NotFound");
+                    }
+
+
+                    //_MyWindowHandle = MyProcess.MainWindowHandle;
+                    //_MyWindowHandleMain = FindWindow(null, SystemUtil.IsServerBuild ? MyProcess.MainModule.FileName : GetMyAppName());
+                    //이렇게 하니 한글폴더가 있으니 문제가생김. 그냥 process ID로 검색하는걸로 변경
+                    //server build 모드에서는 console창을 window handle로 가져오기 위해 file실행경로를 윈도우타이틀 이름으로 넣어줌
+                    
                 }
                 return _MyWindowHandleMain;
             }

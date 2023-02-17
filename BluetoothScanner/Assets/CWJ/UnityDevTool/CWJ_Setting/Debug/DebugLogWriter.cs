@@ -31,7 +31,10 @@ namespace CWJ.AccessibleEditor.DebugSetting
                 if (PrevLogCache == null)
                     PrevLogCache = new Queue<string>();
                 PrevLogCache.Enqueue(log);
-                return;
+            }
+            else
+            {
+                StreamWriter.WriteLine(log);
             }
 #endif
         }

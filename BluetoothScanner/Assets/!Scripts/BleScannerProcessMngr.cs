@@ -32,15 +32,12 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
                 UnityEngine.Application.Quit();
                 return;
             }
-#if !CWJ_LOG_SAVE
             WinSysHelper.HideWindow();
-#endif
-
         }
         isVerified = true;
     }
 
-#if UNITY_EDITOR
+#if UNITY_EDITOR    
     [SerializeField, Readonly] string editorBuildFilePath;
     [InvokeButton]
     void Editor_SetEditorBuildFile()
@@ -93,6 +90,7 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
             if (!Application.isEditor)
             {
                 buildFolderPath = WinSysHelper.MyExeFolderPath;
+                Debug.LogError(buildFolderPath);
             }
 
 #if UNITY_EDITOR

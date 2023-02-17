@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using UnityEngine;
 using System.Collections.Generic;
+using static UnityEngine.Rendering.VirtualTexturing.Debugging;
 
 namespace CWJ
 {
@@ -215,15 +216,15 @@ namespace CWJ
 
         #endregion
 
-        public static string GetForegroundWindowTitle()
+        public static string GetWindowTitleText(IntPtr whandle)
         {
             const int nChars = 256;
-            StringBuilder Buff = new StringBuilder(nChars);
-            IntPtr handle = GetForegroundWindow();
-
-            if (GetWindowText(handle, Buff, nChars) > 0)
+            var builder = new StringBuilder(nChars);
+            if (GetWindowText(whandle, builder, nChars) > 0)
             {
-                return Buff.ToString();
+                string title = builder.ToString();
+                builder.Clear(); builder = null;
+                return title;
             }
             return null;
         }
