@@ -1,0 +1,39 @@
+{
+    "name": "CWJ.UnityDevTool",
+    "rootNamespace": "CWJ",
+    "references": [
+        "GUID:478a2357cc57436488a56e564b08d223",
+        "GUID:796e37b916e185c4a9e7e4178ef62fad",
+        "GUID:560b04d1a97f54a4e82edc0cbbb69285",
+        "GUID:8c4dd21966739024fbd72155091d199e"
+    ],
+    "includePlatforms": [
+        "Android",
+        "CloudRendering",
+        "Editor",
+        "GameCoreScarlett",
+        "GameCoreXboxOne",
+        "iOS",
+        "LinuxStandalone64",
+        "Lumin",
+        "macOSStandalone",
+        "PS4",
+        "PS5",
+        "Stadia",
+        "Switch",
+        "tvOS",
+        "WSA",
+        "WebGL",
+        "WindowsStandalone32",
+        "WindowsStandalone64",
+        "XboxOne"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
