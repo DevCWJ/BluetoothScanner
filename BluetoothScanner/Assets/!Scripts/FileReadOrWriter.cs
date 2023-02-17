@@ -1,14 +1,20 @@
 
 
 using System.IO;
-using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 
 public static class TextReadOrWriter
 {
     public static void CreateText(string path)
     {
-        using (new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1024, FileOptions.None)) { }
+        try
+        {
+            using (new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1024, FileOptions.None)) { }
+        }
+        catch (System.Exception e)
+        {
+
+        }
     }
 
     public static void CreateOrWriteText(string path, string content)
@@ -26,13 +32,21 @@ public static class TextReadOrWriter
 
     public static void CreateAndWriteText(string path, string content)
     {
-        using (var stream = new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1024, FileOptions.None))
+        try
         {
-            using (TextWriter sw = new StreamWriter(stream, Encoding.UTF8, 1024, false))
+            using (var stream = new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1024, FileOptions.None))
             {
-                sw.Write(content);
+                using (TextWriter sw = new StreamWriter(stream, Encoding.UTF8, 1024, false))
+                {
+                    sw.Write(content);
+                }
             }
         }
+        catch (System.Exception e)
+        {
+
+        }
+
     }
 
     public static string ReadText(string path)
@@ -41,34 +55,48 @@ public static class TextReadOrWriter
         //{
         //    return null;
         //}
-        using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
+        try
         {
-            using (var sr = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, 1024, true))
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
             {
-                return sr.ReadToEnd();
+                using (var sr = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, 1024, true))
+                {
+                    return sr.ReadToEnd();
+                }
             }
+        }
+        catch (System.Exception e)
+        {
+            return string.Empty;
         }
     }
 
-    public static void WriteText(string path , string content)
+    public static void WriteText(string path, string content)
     {
         //if (string.IsNullOrEmpty(path))
         //{
         //    return;
         //}
-        using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write))
+        try
         {
-            if (content.Length == 0)
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write))
             {
-                stream.SetLength(0);
-            }
-            else
-            {
-                using (TextWriter sw = new StreamWriter(stream, Encoding.UTF8, 1024, false))
+                if (content.Length == 0)
                 {
-                    sw.Write(content);
+                    stream.SetLength(0);
                 }
+                else
+                {
+                    using (TextWriter sw = new StreamWriter(stream, Encoding.UTF8, 1024, false))
+                    {
+                        sw.Write(content);
+                    }
+                }
+
             }
+        }
+        catch (System.Exception e)
+        {
 
         }
     }

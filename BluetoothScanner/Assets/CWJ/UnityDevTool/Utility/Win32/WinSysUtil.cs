@@ -136,12 +136,15 @@ namespace CWJ
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool ShowWindow(IntPtr hWnd, uint nCmdShow);
 
-
-        public static bool ShowWindow(IntPtr hWnd)
+        public static bool WindowMinimize(IntPtr hWnd)
+        {
+            return ShowWindow(hWnd, (uint)ShowWindowCommands.SW_MINIMIZE);
+        }
+        public static bool WindowShow(IntPtr hWnd)
         {
             return ShowWindow(hWnd, (uint)ShowWindowCommands.SW_RESTORE);
         }
-        public static bool HideWindow(IntPtr hWnd)
+        public static bool WindowHide(IntPtr hWnd)
         {
             return ShowWindow(hWnd, (uint)ShowWindowCommands.SW_HIDE);
         }
@@ -150,12 +153,12 @@ namespace CWJ
         public static extern IntPtr ExtractAssociatedIcon(IntPtr hInst, StringBuilder lpIconPath, out ushort lpiIcon);
 
         /// <summary>
-        /// This function retrieves the visibility state of the specified window.
+        ///  안됨 확인필요. This function retrieves the visibility state of the specified window.
         /// </summary>
         /// <param name="hWnd"></param>
         /// <returns></returns>
         [DllImport("USER32.DLL")]
-        public static extern bool IsWindowVisible(IntPtr hWnd);
+        public static extern bool IsWindowVisible(IntPtr windowHandle);
 
 
         /// <summary>
@@ -211,6 +214,9 @@ namespace CWJ
         private const int ShowNORMAL = 1;
         private const int ShowMINIMIZED = 2;
         private const int ShowMAXIMIZED = 3;
+        private const int SW_MAXIMIZE = 3;
+        private const int SW_MINIMIZE = 6;
+
         [DllImport(User32Dll)]
         private static extern bool ShowWindowAsync(IntPtr findname, int howShow);
 
@@ -234,7 +240,7 @@ namespace CWJ
             try
             {
                 ShowWindowAsync(handleName, ShowNORMAL);
-                ShowWindow(handleName);
+                WindowShow(handleName);
                 BringWindowToTop(handleName);
                 SetForegroundWindow(handleName);
             }

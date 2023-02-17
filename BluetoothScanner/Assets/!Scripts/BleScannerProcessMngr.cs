@@ -1,6 +1,7 @@
 using CWJ;
 using CWJ.Serializable;
 using System;
+using System.Collections;
 using System.IO;
 using System.Text;
 
@@ -15,26 +16,10 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
         NULL = 0,
         start,
         stop,
-        show,
-        hide,
+        //show,
+        //hide,
         quit,
         exit
-    }
-
-    static bool isVerified = false;
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
-    static void Init()
-    {
-        if (!Application.isEditor)
-        {
-            if (WinSysHelper.IsPreventProcessExecuted(isShowWhenOverlapped: false, hasDefaultErrorMsg: false))
-            {
-                UnityEngine.Application.Quit();
-                return;
-            }
-            WinSysHelper.HideWindow();
-        }
-        isVerified = true;
     }
 
 #if UNITY_EDITOR    
@@ -52,6 +37,7 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
         }, UnityEngine.Application.dataPath, "실행파일", "exe");
     }
 #endif
+
 
     [SerializeField, ShowConditional(EPlayMode.PlayMode), Readonly] string commandTxtPath;
     [SerializeField, ShowConditional(EPlayMode.PlayMode), Readonly] string detectedTxtPath;
@@ -72,14 +58,32 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
     
     [SerializeField]
     DictionaryVisualized<CommandType, UnityEvent> callbackByCmdType = new DictionaryVisualized<CommandType, UnityEvent>();
+    
+    static bool isVerified = false;
 
-    private void Awake()
+    [RuntimeInitializeOnLoadMethod( RuntimeInitializeLoadType.BeforeSceneLoad)]
+    static void InitBeforeSceneLoad()
+    {
+        if (!Application.isEditor)
+        {
+            if (WinSysHelper.IsPreventProcessExecuted(isShowWhenOverlapped: false, hasDefaultErrorMsg: false))
+            {
+                UnityEngine.Application.Quit();
+                return;
+            }
+            WinSysHelper.MinimizeMyWindow();
+        }
+
+        isVerified = true;
+
+    }
+
+    private void Start()
     {
         if (!isVerified)
         {
             return;
         }
-
         try
         {
             callbackByCmdType.AddCallbackInDictionaryByEnum(this, nameof(OnCommand_start), enumStartValue: CommandType.start, separatorChr: '_');
@@ -117,7 +121,7 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
             detectedTxtPath = Path.Combine(exeFolder, ini[Tag_System][Tag_DetectedTextFile].ToString());
 
             TextReadOrWriter.CreateOrWriteText(detectedTxtPath, string.Empty);
-            
+
 
             separatorStr = ini[Tag_System][Tag_SeparatorChar].ToString();
 
@@ -136,7 +140,6 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
             Debug.LogError(ex.ToString());
             TextReadOrWriter.CreateOrWriteText(detectedTxtPath, "ERROR");
         }
-
     }
 
     bool hasValue = false;
@@ -147,16 +150,21 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
             return;
         }
 
-        if (hasValue)
+        if (detectedDeviceNameBuilder == null)
+        {
+            return;
+        }
+
+        if (!hasValue)
+            hasValue = true;
+        else 
             detectedDeviceNameBuilder.Append(separatorStr);
 
         detectedDeviceNameBuilder.Append(name);
 
-        if (!hasValue)
-            hasValue = true;
-
         string detectedNames = detectedDeviceNameBuilder.ToString();
-        TextReadOrWriter.CreateOrWriteText(detectedTxtPath, detectedNames);
+
+        TextReadOrWriter.CreateOrWriteText(detectedTxtPath, $"[{DateTime.Now.ToString("HH:mm:ss")}]" + detectedNames);
     }
 
     string lastCommandStr = string.Empty;
@@ -194,9 +202,12 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
         TextReadOrWriter.WriteText(commandTxtPath, string.Empty);
     }
 
+
+
     void OnCommand_start()
     {
         TextReadOrWriter.CreateOrWriteText(detectedTxtPath, string.Empty);
+        hasValue = false;
 
         if (detectedDeviceNameBuilder == null)
             detectedDeviceNameBuilder = new StringBuilder();
@@ -214,16 +225,15 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
             detectedDeviceNameBuilder.Clear();
             detectedDeviceNameBuilder = null;
         }
-        hasValue = false;
     }
 
     void OnCommand_show()
     {
-        WinSysHelper.ShowWindow();
+        WinSysHelper.ShowMyWindow();
     }
     void OnCommand_hide()
     {
-        WinSysHelper.HideWindow();
+        WinSysHelper.HideMyWindow();
     }
     void OnCommand_exit()
     {

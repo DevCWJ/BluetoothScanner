@@ -57,22 +57,22 @@ public class BleScanner : DisposableMonoBehaviour
     [SerializeField, Readonly] UnityEvent<string> targetDeviceEvent = new UnityEvent<string>();
 
 
-    public void SetTargetBleName(string[] names, bool isTargetUntilConnectable, UnityAction<string> targetDeviceAction = null)
-    {
-        if (names.LengthSafe() == 0)
-        {
-            return;
-        }
-        hasTarget = true;
-        this.isTargetUntilConnectable = isTargetUntilConnectable;
+    //public void SetTargetBleName(string[] names, bool isTargetUntilConnectable, UnityAction<string> targetDeviceAction = null)
+    //{
+    //    if (names.LengthSafe() == 0)
+    //    {
+    //        return;
+    //    }
+    //    hasTarget = true;
+    //    this.isTargetUntilConnectable = isTargetUntilConnectable;
 
-        targetNames = new HashSet<string>(names);
-        targetDeviceEvent = new UnityEvent<string>();
-        if (targetDeviceAction != null)
-            targetDeviceEvent.AddListener(targetDeviceAction);
+    //    targetNames = new HashSet<string>(names);
+    //    targetDeviceEvent = new UnityEvent<string>();
+    //    if (targetDeviceAction != null)
+    //        targetDeviceEvent.AddListener(targetDeviceAction);
 
-        StartScan();
-    }
+    //    StartScan();
+    //}
 
     public void StartScan(bool isLoopScan = false)
     {
@@ -80,7 +80,6 @@ public class BleScanner : DisposableMonoBehaviour
 
         this.isLoopScan = isLoopScan;
 
-        BleApi.StartDeviceScan();
         Debug.Log($"[Start Scan]");
 
         CO_ScanBle = StartCoroutine(DO_ScanBle());
@@ -93,11 +92,12 @@ public class BleScanner : DisposableMonoBehaviour
         if (CO_ScanBle != null)
         {
             StopCoroutine(CO_ScanBle);
+            BleApi.StopDeviceScan();
             Debug.Log($"[Stop Scan]");
             Debug.Log("----------------------------------");
             CO_ScanBle = null;
         }
-        BleApi.StopDeviceScan();
+
         deviceCacheById.Clear();
     }
     string lastError;
@@ -105,14 +105,31 @@ public class BleScanner : DisposableMonoBehaviour
     Coroutine CO_ScanBle = null;
     IEnumerator DO_ScanBle()
     {
+        BleApi.StartDeviceScan();
+        bool isScanFinished = false;
         do
         {
+            yield return null;
+
+            if (isScanFinished)
+            {
+                continue;
+            }
+
             BleApi.ScanStatus status;
+            var device = new BleApi.DeviceUpdate();
 
             do
             {
-                var device = new BleApi.DeviceUpdate();
+                yield return null;
+
                 status = BleApi.PollDevice(ref device, false);
+
+                if (status == BleApi.ScanStatus.FINISHED)
+                {
+                    isScanFinished = true;
+                    break;
+                }
 
                 if (device.id.Length == 0)
                 {
@@ -121,6 +138,7 @@ public class BleScanner : DisposableMonoBehaviour
 
                 if (!deviceCacheById.TryGetValue(device.id, out var deviceCache))
                 {
+                    //Debug.LogError(device.id);
                     deviceCacheById.Add(device.id, deviceCache = new DeviceCache(device.id, device.name ?? string.Empty, device.isConnectable));
                     string newDeviceName = deviceCache.name;
                     if (newDeviceName.Length > 0)
@@ -143,26 +161,25 @@ public class BleScanner : DisposableMonoBehaviour
                         deviceCache.name = device.name;
                     }
                     // 현재 isConnectable가 이상하게 작동함. 꺼졌다 켜졌다 반복함.
-                    //if (device.isConnectableUpdated && deviceCache.name.Length > 0 && !deviceCache.isConnectable.Equals(device.isConnectable))
-                    //{
-                    //    deviceCache.SetDirty();
-                    //    Debug.LogWarning($"[ Updated ] name: '{deviceCache.name}'\nisConnectable : {deviceCache.isConnectable}->{device.isConnectable}\nid: '{device.id}'");
-                    //    deviceCache.isConnectable = device.isConnectable;
-                    //}
+                    if (device.isConnectableUpdated && deviceCache.name.Length > 0 && !deviceCache.isConnectable.Equals(device.isConnectable))
+                    {
+                        deviceCache.isConnectable = device.isConnectable;
+                        //deviceCache.SetDirty();
+                        //Debug.LogWarning($"[ Updated ] name: '{deviceCache.name}'\nisConnectable : {deviceCache.isConnectable}->{device.isConnectable}\nid: '{device.id}'");
+                    }
                 }
 
                 if (deviceCache.isDirty)
                 {
                     deviceCache.SolveDirty();
-                    deviceUpdateEvent.Invoke(deviceCache.name, deviceCache.CheckIsVerifiedAndConnectable());
+                    if (deviceCache.isConnectable && deviceCache.name.Length > 0)
+                        deviceUpdateEvent.Invoke(deviceCache.name, deviceCache.CheckIsVerifiedAndConnectable());
                     if (hasTarget && isTargetUntilConnectable && targetNames.Contains(deviceCache.name))
                     {
                         targetNames.Remove(deviceCache.name);
                         targetDeviceEvent?.Invoke(deviceCache.name);
                     }
                 }
-                yield return null;
-                yield return null;
 
             } while (status == BleApi.ScanStatus.AVAILABLE);
 
@@ -176,7 +193,6 @@ public class BleScanner : DisposableMonoBehaviour
                     lastError = errMsg.msg;
                 }
             }
-            yield return null;
             yield return null;
         } while (isLoopScan || (hasTarget && targetNames.Count > 0));
 

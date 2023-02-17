@@ -76,7 +76,7 @@ namespace CWJ
 
         static bool isInit_MyWindowHandleMain = false;
         static IntPtr _MyWindowHandleMain;
-        const string WindowHandle_Default_IME="Default IME";
+        const string WindowHandle_Default_IME = "Default IME";
         public static IntPtr MyWindowHandleMain
         {
             get
@@ -102,17 +102,15 @@ namespace CWJ
                             //"Default IME" 가 아니고, AppName과 같지않은 한개가 콘솔일거라고 추측하여 가져옴. 문제시 다른 방법 찾아야함 귀찮음.
                         });
 
-                    if (index >= 0)
-                    {
-                        return _MyWindowHandleMain = MyWindowHandles[index];
-                    }
-                    else
+                    if (index < 0)
                     {
                         UnityEngine.Debug.LogError("WindowHandle : NotFound");
                         throw new EntryPointNotFoundException("Process NotFound");
                     }
-
-
+                    else
+                    {
+                        _MyWindowHandleMain = MyWindowHandles[index];
+                    }
                     //_MyWindowHandle = MyProcess.MainWindowHandle;
                     //_MyWindowHandleMain = FindWindow(null, SystemUtil.IsServerBuild ? MyProcess.MainModule.FileName : GetMyAppName());
                     //이렇게 하니 한글폴더가 있으니 문제가생김. 그냥 process ID로 검색하는걸로 변경
@@ -147,41 +145,45 @@ namespace CWJ
                 return _MyWindowHandles;
             }
         }
-
-        public static void HideWindow()
+        public static void MinimizeMyWindow()
         {
-            try
+            if (MyWindowHandles.Length == 0)
             {
-                for (int i = 0; i < MyWindowHandles.Length; i++)
-                {
-                    WinSysUtil.HideWindow(MyWindowHandles[i]);
-                }
-                //WinSysUtil.HideWindow(MyWindowHandleMain);
+                return;
             }
-            catch (Exception e)
-            {
-                Debug.LogError(e.Message);
-            }
+            WinSysUtil.WindowMinimize(MyWindowHandleMain);
         }
+        public static void HideMyWindow()
+        {
+            if (MyWindowHandles.Length == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < MyWindowHandles.Length; i++)
+            {
+                WinSysUtil.WindowHide(MyWindowHandles[i]);
+            }
+            //WinSysUtil.HideWindow(MyWindowHandleMain);
+        }
+
         /// <summary>
         /// 작업표시줄 아이콘 표시
         /// </summary>
-        public static void ShowWindow()
+        public static void ShowMyWindow()
         {
-            try
+            if (MyWindowHandles.Length == 0)
             {
-                //for (int i = 0; i < MyWindowHandles.Length; i++)
-                //{
-                //    WinSysUtil.ShowWindow(MyWindowHandles[i]);
-                //    SetForegroundWindow(MyWindowHandles[i]);
-                //}
-                WinSysUtil.ShowWindow(MyWindowHandleMain);
-                SetForegroundWindow(MyWindowHandleMain);
+                return;
             }
-            catch (Exception e)
-            {
-                Debug.LogError(e.Message);
-            }
+
+            //for (int i = 0; i < MyWindowHandles.Length; i++)
+            //{
+            //    WinSysUtil.ShowWindow(MyWindowHandles[i]);
+            //    SetForegroundWindow(MyWindowHandles[i]);
+            //}
+            WinSysUtil.WindowShow(MyWindowHandleMain);
+            //SetForegroundWindow(MyWindowHandleMain);
         }
 
         /// <summary>
@@ -232,12 +234,52 @@ namespace CWJ
         /// <para/><see langword="true"/>: overlapped
         /// </summary>
         /// <returns></returns>
-        public static bool IsPreventProcessExecuted(string checkProcessName = null, bool isShowWhenOverlapped = true, bool hasDefaultErrorMsg = false)
+        public static bool IsPreventProcessExecuted(string checkProcessName = null, bool isShowWhenOverlapped = false, bool hasDefaultErrorMsg = false)
         {
             string myProcessName = GetMyAppName();
             checkProcessName = checkProcessName ?? myProcessName;
 
-            var processes = System.Diagnostics.Process.GetProcesses().FindAll(p => p != null && p.ProcessName.Equals(checkProcessName));
+            //var processes = System.Diagnostics.Process.GetProcesses().Where(p =>
+            //{
+            //    if (p == null)
+            //    {
+            //        return false;
+            //    }
+            //        var ptmp = p;
+            //    try
+            //    {
+            //        if(p )
+            //    }
+            //});
+            var processes = System.Diagnostics.Process.GetProcesses();
+            var processesList = new List<System.Diagnostics.Process>();
+
+            for (int i = 0; i < processes.Length; i++)
+            {
+                var process = processes[i];
+                if (process == null)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    if (!process.ProcessName.Equals(checkProcessName))
+                    {
+                        process = null;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.LogError(e.ToString());
+                    process = null;
+                }
+
+                if (process != null)
+                    processesList.Add(process);
+            }
+
+            processes = processesList.ToArray();
 
             bool isMyProcess = checkProcessName == myProcessName;
             if (processes.Length > (isMyProcess ? 1 : 0))
