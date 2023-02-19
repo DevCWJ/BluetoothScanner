@@ -60,39 +60,46 @@ public class Demo : MonoBehaviour
                     bool isUpdated = false;
                     if(!deviceCacheById.TryGetValue(device.id, out var deviceCache))
                     {
+                        isUpdated = true;
                         deviceCacheById.Add(device.id, deviceCache = new DeviceCache(device.id, device.name, device.isConnectable));
                         if (!string.IsNullOrEmpty(device.name))
                             Debug.Log($"[   New   ] name: '{device.name}'\nid: '{device.id}'");
                     }
+                    else
+                    {
+                        if (device.nameUpdated)
+                        {
+                            if (!string.IsNullOrEmpty(device.name))
+                                Debug.Log($"[ Updated ] name: '{deviceCache.name}'->'{device.name}'\nid: '{device.id}'");
+                            deviceCache.name = device.name;
+                            isUpdated = true;
+                        }
+                        if (device.isConnectableUpdated)
+                        {
+                            if (!string.IsNullOrEmpty(device.name))
+                                Debug.Log($"[ Updated ] name: '{deviceCache.name}' - isConnectable : {deviceCache.isConnectable}->{device.isConnectable}\nid: '{device.id}'");
+                            deviceCache.isConnectable = device.isConnectable;
+                            isUpdated = true;
+                        }
+                    }
 
-                    if (device.nameUpdated)
-                    {
-                        if (!string.IsNullOrEmpty(device.name))
-                            Debug.Log($"[ Updated ] name: '{deviceCache.name}'->'{device.name}'\nid: '{device.id}'");
-                        deviceCache.name = device.name;
-                        isUpdated = true;
-                    }
-                    if (device.isConnectableUpdated)
-                    {
-                        if (!string.IsNullOrEmpty(device.name))
-                            Debug.Log($"[ Updated ] name: '{deviceCache.name}' - isConnectable : {deviceCache.isConnectable}->{device.isConnectable}\nid: '{device.id}'");
-                        deviceCache.isConnectable = device.isConnectable;
-                        isUpdated = true;
-                    }
+
                     
                     if (isUpdated)
                     {
-                        deviceCache.SetDirty();
+                        deviceCacheById[deviceCache.id] = deviceCache;
+
+                        if (deviceCache.CheckIsVerifiedAndConnectable())
+                        {
+                            Debug.Log($"[ 연결가능] name: '{deviceCache.name}'\nid: '{deviceCache.id}'");
+                            //GameObject g = Instantiate(deviceScanResultProto, scanResultRoot);
+                            //g.name = device.id;
+                            //g.transform.GetChild(0).GetComponent<Text>().text = deviceCache.name;
+                            //g.transform.GetChild(1).GetComponent<Text>().text = deviceCache.id;
+                        }
                     }
 
-                    if (deviceCache.isDirty && deviceCache.CheckIsVerifiedAndConnectable())
-                    {
-                        Debug.Log($"[ 연결가능] name: '{deviceCache.name}'\nid: '{deviceCache.id}'");
-                        //GameObject g = Instantiate(deviceScanResultProto, scanResultRoot);
-                        //g.name = device.id;
-                        //g.transform.GetChild(0).GetComponent<Text>().text = deviceCache.name;
-                        //g.transform.GetChild(1).GetComponent<Text>().text = deviceCache.id;
-                    }
+
                 }
                 else if (status == BleApi.ScanStatus.FINISHED)
                 {

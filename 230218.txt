@@ -1,0 +1,4 @@
+command없애고
+exit신호만 받음.
+3초마다 Start강제
+detectedName 텍스트파일은 bak에 입력후 rename으로 전달

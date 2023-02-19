@@ -239,47 +239,23 @@ namespace CWJ
             string myProcessName = GetMyAppName();
             checkProcessName = checkProcessName ?? myProcessName;
 
-            //var processes = System.Diagnostics.Process.GetProcesses().Where(p =>
-            //{
-            //    if (p == null)
-            //    {
-            //        return false;
-            //    }
-            //        var ptmp = p;
-            //    try
-            //    {
-            //        if(p )
-            //    }
-            //});
-            var processes = System.Diagnostics.Process.GetProcesses();
-            var processesList = new List<System.Diagnostics.Process>();
-
-            for (int i = 0; i < processes.Length; i++)
+            var processes = System.Diagnostics.Process.GetProcesses().Where(p =>
             {
-                var process = processes[i];
-                if (process == null)
-                {
-                    continue;
-                }
-
+                if (p == null) return false;
+                var pTmp = p;
                 try
                 {
-                    if (!process.ProcessName.Equals(checkProcessName))
+                    if ((!p.ProcessName?.Equals(checkProcessName)) ?? false)
                     {
-                        process = null;
+                        pTmp = null;
                     }
                 }
                 catch (Exception e)
                 {
-                    Debug.LogError(e.ToString());
-                    process = null;
+                    pTmp = null;
                 }
-
-                if (process != null)
-                    processesList.Add(process);
-            }
-
-            processes = processesList.ToArray();
+                return pTmp != null;
+            }).ToArray();
 
             bool isMyProcess = checkProcessName == myProcessName;
             if (processes.Length > (isMyProcess ? 1 : 0))

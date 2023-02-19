@@ -2,7 +2,9 @@ using CWJ;
 using CWJ.Serializable;
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 using UnityEngine;
@@ -14,8 +16,8 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
     public enum CommandType
     {
         NULL = 0,
-        start,
-        stop,
+        //start,
+        //stop,
         //show,
         //hide,
         quit,
@@ -48,7 +50,6 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
 
     [SerializeField, Readonly] CommandType commandType = CommandType.NULL;
 
-    StringBuilder detectedDeviceNameBuilder = null;
 
     string separatorStr;
     const string Tag_System = "SYSTEM PATH AND CONFIGURATION";
@@ -58,11 +59,11 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
     
     [SerializeField]
     DictionaryVisualized<CommandType, UnityEvent> callbackByCmdType = new DictionaryVisualized<CommandType, UnityEvent>();
-    
+
     static bool isVerified = false;
 
-    [RuntimeInitializeOnLoadMethod( RuntimeInitializeLoadType.BeforeSceneLoad)]
-    static void InitBeforeSceneLoad()
+
+    private void Awake()
     {
         if (!Application.isEditor)
         {
@@ -75,7 +76,6 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
         }
 
         isVerified = true;
-
     }
 
     private void Start()
@@ -84,87 +84,104 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
         {
             return;
         }
-        try
+
+        callbackByCmdType.AddCallbackInDictionaryByEnum(this, nameof(OnCommand_quit), enumStartValue: CommandType.quit, separatorChr: '_');
+
+        string buildFolderPath = null;
+        if (!Application.isEditor)
         {
-            callbackByCmdType.AddCallbackInDictionaryByEnum(this, nameof(OnCommand_start), enumStartValue: CommandType.start, separatorChr: '_');
-
-            bleScanner.deviceUpdateEvent.AddListener_New(OnDetectedDevice);
-
-            string buildFolderPath = null;
-            if (!Application.isEditor)
-            {
-                buildFolderPath = WinSysHelper.MyExeFolderPath;
-                Debug.LogError(buildFolderPath);
-            }
+            buildFolderPath = WinSysHelper.MyExeFolderPath;
+            Debug.LogError(buildFolderPath);
+        }
 
 #if UNITY_EDITOR
-            buildFolderPath = Path.GetDirectoryName(editorBuildFilePath);
+        buildFolderPath = Path.GetDirectoryName(editorBuildFilePath);
 #endif
 
-            var exeFolder = buildFolderPath;
-            string iniPath = Path.Combine(exeFolder, "Path.ini");
-            IniFile ini = new IniFile();
+        var exeFolder = buildFolderPath;
+        string iniPath = Path.Combine(exeFolder, "Path.ini");
+        IniFile ini = new IniFile();
 
-            if (!File.Exists(iniPath))
-            {
-                ini[Tag_System][Tag_CommandTextFile] = "Command.txt";
-                ini[Tag_System][Tag_DetectedTextFile] = "DetectedNames.txt";
-                ini[Tag_System][Tag_SeparatorChar] = ",";
-
-                ini.Save(iniPath, FileMode.Create);
-            }
-            else
-            {
-                ini.Load(iniPath);
-            }
-
-            detectedTxtPath = Path.Combine(exeFolder, ini[Tag_System][Tag_DetectedTextFile].ToString());
-
-            TextReadOrWriter.CreateOrWriteText(detectedTxtPath, string.Empty);
-
-
-            separatorStr = ini[Tag_System][Tag_SeparatorChar].ToString();
-
-            commandTxtPath = Path.Combine(exeFolder, ini[Tag_System][Tag_CommandTextFile].ToString());
-            if (!File.Exists(commandTxtPath))
-                TextReadOrWriter.CreateText(commandTxtPath);
-            else if (!Application.isEditor)
-                UpdateCommandByTxt(commandTxtPath);
-
-            fileChangedChecker.fileChangedEvent.AddListener_New(UpdateCommandByTxt);
-            fileChangedChecker.InitSystemWatcher(Path.GetDirectoryName(commandTxtPath), Path.GetFileName(commandTxtPath));
-
-        }
-        catch (Exception ex)
+        if (!File.Exists(iniPath))
         {
-            Debug.LogError(ex.ToString());
-            TextReadOrWriter.CreateOrWriteText(detectedTxtPath, "ERROR");
+            ini[Tag_System][Tag_CommandTextFile] = "Command.txt";
+            ini[Tag_System][Tag_DetectedTextFile] = "DetectedNames.txt";
+            ini[Tag_System][Tag_SeparatorChar] = ",";
+
+            ini.Save(iniPath, FileMode.Create);
         }
+        else
+        {
+            ini.Load(iniPath);
+        }
+
+
+        separatorStr = ini[Tag_System][Tag_SeparatorChar].ToString();
+
+        commandTxtPath = Path.Combine(exeFolder, ini[Tag_System][Tag_CommandTextFile].ToString());
+        if (!File.Exists(commandTxtPath))
+            TextReadOrWriter.CreateText(commandTxtPath);
+        else if (!Application.isEditor)
+            UpdateCommandByTxt(commandTxtPath);
+
+        detectedTxtPath = Path.Combine(exeFolder, ini[Tag_System][Tag_DetectedTextFile].ToString());
+
+        fileChangedChecker.fileChangedEvent.AddListener_New(UpdateCommandByTxt);
+        fileChangedChecker.InitSystemWatcher(Path.GetDirectoryName(commandTxtPath), Path.GetFileName(commandTxtPath));
+
+        bleScanner.deviceUpdateEvent.AddListener_New(OnDeviceUpdate);
+
+        CO_LoopStart = StartCoroutine(IE_LoopStartAndStop());
     }
 
-    bool hasValue = false;
-    void OnDetectedDevice(string name, bool isConnectable)
+    Coroutine CO_LoopStart = null;
+    IEnumerator IE_LoopStartAndStop()
     {
-        if (name.Length == 0)
+        var waitForSec = new WaitForSeconds(7.7f);
+        do
         {
-            return;
-        }
+            OnCommand_start();
+            yield return waitForSec;
+            OnCommand_stop();
+        } while (true);
+    }
 
-        if (detectedDeviceNameBuilder == null)
+    Dictionary<string, DeviceCache> deviceCacheById = new Dictionary<string, DeviceCache>();
+
+    bool isDeviceUpdated = false;
+    void OnDeviceUpdate(DeviceCache device)
+    {
+        isDeviceUpdated = true;
+        if (!deviceCacheById.TryGetValue(device.id, out var deviceCache))
+            deviceCacheById.Add(device.id, device);
+        else
+            deviceCacheById[device.id] = device;
+        isDeviceUpdated = false;
+    }
+
+    Coroutine CO_WriteBleDevice = null;
+    IEnumerator DO_WriteBleDevice()
+    {
+        TextReadOrWriter.CreateOrWriteText(detectedTxtPath, string.Empty);
+        yield return null;
+
+        var waitForTime = new WaitForSeconds(0.77f);
+
+        do
         {
-            return;
-        }
+            if (isDeviceUpdated)
+                yield return null;
 
-        if (!hasValue)
-            hasValue = true;
-        else 
-            detectedDeviceNameBuilder.Append(separatorStr);
+            var devices = deviceCacheById.Values;
+            var deviceNames = devices.Where(device => device.CheckIsVerifiedAndConnectable()).Select(device => device.name);
 
-        detectedDeviceNameBuilder.Append(name);
+            TextReadOrWriter.WriteText(detectedTxtPath, $"[{DateTime.Now.ToString("HH:mm:ss")}]" + string.Join(separatorStr, deviceNames));
 
-        string detectedNames = detectedDeviceNameBuilder.ToString();
+            yield return waitForTime;
 
-        TextReadOrWriter.CreateOrWriteText(detectedTxtPath, $"[{DateTime.Now.ToString("HH:mm:ss")}]" + detectedNames);
+        } while (CO_WriteBleDevice != null);
+
+        CO_WriteBleDevice = null;
     }
 
     string lastCommandStr = string.Empty;
@@ -199,32 +216,26 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
 
         callbackByCmdType[commandType].Invoke();
 
-        TextReadOrWriter.WriteText(commandTxtPath, string.Empty);
     }
-
-
 
     void OnCommand_start()
     {
-        TextReadOrWriter.CreateOrWriteText(detectedTxtPath, string.Empty);
-        hasValue = false;
-
-        if (detectedDeviceNameBuilder == null)
-            detectedDeviceNameBuilder = new StringBuilder();
-        else
-            detectedDeviceNameBuilder.Clear();
-
+        deviceCacheById.Clear();
         bleScanner.StartScan(isLoopScan: true);
+
+        if (CO_WriteBleDevice == null)
+            CO_WriteBleDevice = StartCoroutine(DO_WriteBleDevice());
     }
 
     void OnCommand_stop()
     {
-        bleScanner.StopScan();
-        if (detectedDeviceNameBuilder != null)
+        if (CO_WriteBleDevice != null)
         {
-            detectedDeviceNameBuilder.Clear();
-            detectedDeviceNameBuilder = null;
+            StopCoroutine(CO_WriteBleDevice);
+            CO_WriteBleDevice = null;
         }
+
+        bleScanner.StopScan();
     }
 
     void OnCommand_show()
@@ -267,6 +278,9 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
         {
             return;
         }
+        if (CO_LoopStart != null)
+            StopCoroutine(CO_LoopStart);
+        OnCommand_stop();
         fileChangedChecker.Dispose();
         bleScanner.Dispose();
         if (File.Exists(commandTxtPath))

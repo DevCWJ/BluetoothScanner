@@ -1,5 +1,3 @@
-
-
 using System.IO;
 using System.Text;
 
@@ -9,7 +7,7 @@ public static class TextReadOrWriter
     {
         try
         {
-            using (new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1024, FileOptions.None)) { }
+            using (new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.Read, 2048, FileOptions.None)) { }
         }
         catch (System.Exception e)
         {
@@ -34,9 +32,9 @@ public static class TextReadOrWriter
     {
         try
         {
-            using (var stream = new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.None, 1024, FileOptions.None))
+            using (var stream = new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.Read, 2048, FileOptions.None))
             {
-                using (TextWriter sw = new StreamWriter(stream, Encoding.UTF8, 1024, false))
+                using (TextWriter sw = new StreamWriter(stream, Encoding.UTF8, 2048, false))
                 {
                     sw.Write(content);
                 }
@@ -55,11 +53,12 @@ public static class TextReadOrWriter
         //{
         //    return null;
         //}
+
         try
         {
-            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read))
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
             {
-                using (var sr = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, 1024, true))
+                using (var sr = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, 2048, true))
                 {
                     return sr.ReadToEnd();
                 }
@@ -79,7 +78,7 @@ public static class TextReadOrWriter
         //}
         try
         {
-            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write))
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.Read))
             {
                 if (content.Length == 0)
                 {
@@ -87,7 +86,7 @@ public static class TextReadOrWriter
                 }
                 else
                 {
-                    using (TextWriter sw = new StreamWriter(stream, Encoding.UTF8, 1024, false))
+                    using (TextWriter sw = new StreamWriter(stream, Encoding.UTF8, 2048, false))
                     {
                         sw.Write(content);
                     }
