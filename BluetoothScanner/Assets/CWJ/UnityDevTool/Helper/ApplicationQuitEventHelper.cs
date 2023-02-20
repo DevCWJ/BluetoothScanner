@@ -23,6 +23,10 @@ namespace CWJ
 
         [UnityEngine.SerializeField] private UnityEvent lastQuitEvent = new UnityEvent();
 
+        public static System.Action StaticQuitEvent;
+        public static System.Action StaticLastQuitEvent;
+
+
         /// <summary>
         /// RuntimeInitializeOnLoadMethod 에서 넣어줘야함
         /// </summary>
@@ -44,10 +48,12 @@ namespace CWJ
         protected override void _OnApplicationQuit()
         {
             quitEvent?.Invoke();
+            StaticQuitEvent.Invoke();
 
             if (Application.isEditor)
             {
                 lastQuitEvent?.Invoke();
+                StaticLastQuitEvent.Invoke();
             }
         }
 
@@ -58,6 +64,7 @@ namespace CWJ
             if (!Application.isEditor)
             {
                 lastQuitEvent?.Invoke();
+                StaticLastQuitEvent.Invoke();
             }
         }
 

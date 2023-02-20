@@ -3,11 +3,11 @@ using System.Text;
 
 public static class TextReadOrWriter
 {
-    public static void CreateText(string path)
+    public static void CreateText(string path, FileShare fileShare = FileShare.Read)
     {
         try
         {
-            using (new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.Read, 2048, FileOptions.None)) { }
+            using (new FileStream(path, FileMode.Create, FileAccess.ReadWrite, fileShare, 2048, FileOptions.WriteThrough)) { }
         }
         catch (System.Exception e)
         {
@@ -15,24 +15,24 @@ public static class TextReadOrWriter
         }
     }
 
-    public static void CreateOrWriteText(string path, string content)
+    public static void CreateOrWriteText(string path, string content, FileShare fileShare = FileShare.Read)
     {
         if (!File.Exists(path))
         {
             if (content.Length == 0)
-                CreateText(path);
+                CreateText(path, fileShare);
             else
-                CreateAndWriteText(path, content);
+                CreateAndWriteText(path, content, fileShare);
         }
         else
-            WriteText(path, content);
+            WriteText(path, content, fileShare);
     }
 
-    public static void CreateAndWriteText(string path, string content)
+    public static void CreateAndWriteText(string path, string content, FileShare fileShare = FileShare.Read)
     {
         try
         {
-            using (var stream = new FileStream(path, FileMode.Create, FileAccess.ReadWrite, FileShare.Read, 2048, FileOptions.None))
+            using (var stream = new FileStream(path, FileMode.Create, FileAccess.ReadWrite, fileShare, 2048, FileOptions.WriteThrough))
             {
                 using (TextWriter sw = new StreamWriter(stream, Encoding.UTF8, 2048, false))
                 {
@@ -47,7 +47,7 @@ public static class TextReadOrWriter
 
     }
 
-    public static string ReadText(string path)
+    public static string ReadText(string path, FileShare fileShare = FileShare.Read)
     {
         //if (string.IsNullOrEmpty(path))
         //{
@@ -56,7 +56,7 @@ public static class TextReadOrWriter
 
         try
         {
-            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, fileShare))
             {
                 using (var sr = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, 2048, true))
                 {
@@ -70,7 +70,33 @@ public static class TextReadOrWriter
         }
     }
 
-    public static void WriteText(string path, string content)
+    public static void WriteAppendText(string path, string content, FileShare fileShare = FileShare.Read)
+    {
+        try
+        {
+            using (var stream = new FileStream(path, FileMode.Append, FileAccess.Write, fileShare, 2048, FileOptions.WriteThrough))
+            {
+                if (content.Length == 0)
+                {
+                    stream.SetLength(0);
+                }
+                else
+                {
+                    using (TextWriter sw = new StreamWriter(stream, Encoding.UTF8, 2048, false))
+                    {
+                        sw.Write(content);
+                    }
+                }
+
+            }
+        }
+        catch (System.Exception e)
+        {
+
+        }
+    }
+
+    public static void WriteText(string path, string content, FileShare fileShare = FileShare.Read)
     {
         //if (string.IsNullOrEmpty(path))
         //{
@@ -78,7 +104,7 @@ public static class TextReadOrWriter
         //}
         try
         {
-            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write, FileShare.Read))
+            using (var stream = new FileStream(path, FileMode.Open, FileAccess.Write, fileShare, 2048, FileOptions.WriteThrough))
             {
                 if (content.Length == 0)
                 {

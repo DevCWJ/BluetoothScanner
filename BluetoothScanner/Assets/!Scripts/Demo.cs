@@ -4,15 +4,15 @@ using System.Collections.Generic;
 using System.Text;
 
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
-
 
 public class Demo : MonoBehaviour
 {
-    [SerializeField] bool isScanningDevices = false;
-    [SerializeField] bool isScanningServices = false;
-    [SerializeField] bool isScanningCharacteristics = false;
-    [SerializeField] bool isSubscribed = false;
+    public bool isScanningDevices = false;
+    public bool isScanningServices = false;
+    public bool isScanningCharacteristics = false;
+    public bool isSubscribed = false;
     public Text deviceScanButtonText;
     public Text deviceScanStatusText;
     public GameObject deviceScanResultProto;
@@ -33,16 +33,14 @@ public class Demo : MonoBehaviour
     public string selectedServiceId;
     Dictionary<string, string> characteristicNames = new Dictionary<string, string>();
     public string selectedCharacteristicId;
+    Dictionary<string, Dictionary<string, string>> devices = new Dictionary<string, Dictionary<string, string>>();
     string lastError;
-    Dictionary<string, DeviceCache> deviceCacheById = new Dictionary<string, DeviceCache>();
 
-
-
+    // Start is called before the first frame update
     void Start()
     {
         scanResultRoot = deviceScanResultProto.transform.parent;
         deviceScanResultProto.transform.SetParent(null);
-        isScanningDevices = true;
     }
 
     // Update is called once per frame
@@ -51,74 +49,48 @@ public class Demo : MonoBehaviour
         BleApi.ScanStatus status;
         if (isScanningDevices)
         {
-            var device = new BleApi.DeviceUpdate();
+            BleApi.DeviceUpdate res = new BleApi.DeviceUpdate();
             do
             {
-                status = BleApi.PollDevice(ref device, false);
+                status = BleApi.PollDevice(ref res, false);
                 if (status == BleApi.ScanStatus.AVAILABLE)
                 {
-                    bool isUpdated = false;
-                    if(!deviceCacheById.TryGetValue(device.id, out var deviceCache))
+                    if (!devices.ContainsKey(res.id))
+                        devices[res.id] = new Dictionary<string, string>() {
+                            { "name", "" },
+                            { "isConnectable", "False" }
+                        };
+                    if (res.nameUpdated)
+                        devices[res.id]["name"] = res.name;
+                    if (res.isConnectableUpdated)
+                        devices[res.id]["isConnectable"] = res.isConnectable.ToString();
+                    // consider only devices which have a name and which are connectable
+                    if (devices[res.id]["name"] != "" && devices[res.id]["isConnectable"] == "True")
                     {
-                        isUpdated = true;
-                        deviceCacheById.Add(device.id, deviceCache = new DeviceCache(device.id, device.name, device.isConnectable));
-                        if (!string.IsNullOrEmpty(device.name))
-                            Debug.Log($"[   New   ] name: '{device.name}'\nid: '{device.id}'");
+                        // add new device to list
+                        GameObject g = Instantiate(deviceScanResultProto, scanResultRoot);
+                        g.name = res.id;
+                        g.transform.GetChild(0).GetComponent<Text>().text = devices[res.id]["name"];
+                        g.transform.GetChild(1).GetComponent<Text>().text = res.id;
                     }
-                    else
-                    {
-                        if (device.nameUpdated)
-                        {
-                            if (!string.IsNullOrEmpty(device.name))
-                                Debug.Log($"[ Updated ] name: '{deviceCache.name}'->'{device.name}'\nid: '{device.id}'");
-                            deviceCache.name = device.name;
-                            isUpdated = true;
-                        }
-                        if (device.isConnectableUpdated)
-                        {
-                            if (!string.IsNullOrEmpty(device.name))
-                                Debug.Log($"[ Updated ] name: '{deviceCache.name}' - isConnectable : {deviceCache.isConnectable}->{device.isConnectable}\nid: '{device.id}'");
-                            deviceCache.isConnectable = device.isConnectable;
-                            isUpdated = true;
-                        }
-                    }
-
-
-                    
-                    if (isUpdated)
-                    {
-                        deviceCacheById[deviceCache.id] = deviceCache;
-
-                        if (deviceCache.CheckIsVerifiedAndConnectable())
-                        {
-                            Debug.Log($"[ 연결가능] name: '{deviceCache.name}'\nid: '{deviceCache.id}'");
-                            //GameObject g = Instantiate(deviceScanResultProto, scanResultRoot);
-                            //g.name = device.id;
-                            //g.transform.GetChild(0).GetComponent<Text>().text = deviceCache.name;
-                            //g.transform.GetChild(1).GetComponent<Text>().text = deviceCache.id;
-                        }
-                    }
-
-
                 }
                 else if (status == BleApi.ScanStatus.FINISHED)
                 {
-                        Debug.Log($"[ 스캔완료]");
                     isScanningDevices = false;
-                    //deviceScanButtonText.text = "Scan devices";
-                    //deviceScanStatusText.text = "finished";
+                    deviceScanButtonText.text = "Scan devices";
+                    deviceScanStatusText.text = "finished";
                 }
             } while (status == BleApi.ScanStatus.AVAILABLE);
         }
         if (isScanningServices)
         {
+            BleApi.Service res = new BleApi.Service();
             do
             {
-                status = BleApi.PollService(out var service, false);
+                status = BleApi.PollService(out res, false);
                 if (status == BleApi.ScanStatus.AVAILABLE)
                 {
-                    serviceDropdown.AddOptions(new List<string> { service.uuid });
-
+                    serviceDropdown.AddOptions(new List<string> { res.uuid });
                     // first option gets selected
                     if (serviceDropdown.options.Count == 1)
                         SelectService(serviceDropdown.gameObject);
@@ -133,13 +105,14 @@ public class Demo : MonoBehaviour
         }
         if (isScanningCharacteristics)
         {
+            BleApi.Characteristic res = new BleApi.Characteristic();
             do
             {
-                status = BleApi.PollCharacteristic(out var characteristic, false);
+                status = BleApi.PollCharacteristic(out res, false);
                 if (status == BleApi.ScanStatus.AVAILABLE)
                 {
-                    string name = characteristic.userDescription != "no description available" ? characteristic.userDescription : characteristic.uuid;
-                    characteristicNames[name] = characteristic.uuid;
+                    string name = res.userDescription != "no description available" ? res.userDescription : res.uuid;
+                    characteristicNames[name] = res.uuid;
                     characteristicDropdown.AddOptions(new List<string> { name });
                     // first option gets selected
                     if (characteristicDropdown.options.Count == 1)
@@ -155,21 +128,22 @@ public class Demo : MonoBehaviour
         }
         if (isSubscribed)
         {
-            while (BleApi.PollData(out var res, false))
+            BleApi.BLEData res = new BleApi.BLEData();
+            while (BleApi.PollData(out res, false))
             {
                 subcribeText.text = BitConverter.ToString(res.buf, 0, res.size);
                 // subcribeText.text = Encoding.ASCII.GetString(res.buf, 0, res.size);
             }
         }
-        // log potential errors
-        BleApi.GetError(out var errMsg);
-        if (!string.IsNullOrEmpty(errMsg.msg))
         {
-            if (lastError != errMsg.msg)
+            // log potential errors
+            BleApi.ErrorMessage res = new BleApi.ErrorMessage();
+            BleApi.GetError(out res);
+            if (lastError != res.msg)
             {
-                Debug.LogError(errMsg.msg);
-                errorText.text = errMsg.msg;
-                lastError = errMsg.msg;
+                Debug.LogError(res.msg);
+                errorText.text = res.msg;
+                lastError = res.msg;
             }
         }
     }

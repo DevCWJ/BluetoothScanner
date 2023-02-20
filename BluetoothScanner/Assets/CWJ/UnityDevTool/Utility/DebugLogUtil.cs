@@ -12,11 +12,7 @@ namespace CWJ
     {
         public static void WriteLogForcibly(string log)
         {
-#if CWJ_LOG_SAVE
             CWJ.AccessibleEditor.DebugSetting.DebugLogWriter.WriteLogBeforeSystemLoaded(log);
-#else
-            Debug.Log(log);
-#endif
         }
 
         public static void AssertWithClassName(this Type classType, bool condition, string message, bool isComment = false, bool isBigFont = true, UnityEngine.Object obj = null, bool isPreventStackTrace = false)

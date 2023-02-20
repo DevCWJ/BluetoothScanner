@@ -1,7 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.InteropServices.ComTypes;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 using UnityEngine;
 
@@ -15,8 +18,6 @@ namespace CWJ.AccessibleEditor.DebugSetting
 
         private static string LogFolderPath;
         private static string LogFilePath;
-        private static StreamWriter StreamWriter;
-        private static Queue<string> PrevLogCache = null;
 
         /// <summary>
         /// 로그가 찍히지않는경우 사용할것.
@@ -28,19 +29,25 @@ namespace CWJ.AccessibleEditor.DebugSetting
 #if CWJ_LOG_SAVE
             if (!isInit)
             {
-                if (PrevLogCache == null)
-                    PrevLogCache = new Queue<string>();
-                PrevLogCache.Enqueue(log);
+                if (LogStrBuilder == null)
+                    LogStrBuilder = new StringBuilder();
+                LogStrBuilder.AppendLine(log + "\r\n");
             }
             else
             {
-                StreamWriter.WriteLine(log);
+                WriteLogOnTxt(log);
             }
+#else
+            Debug.Log(log);
 #endif
         }
 
+
+        /// <summary>
+        /// SubsystemRegistration->AfterAssembliesLoaded->BeforeSplashScreen->BeforeSceneLoad 순서임
+        /// </summary>
 #if CWJ_LOG_SAVE
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
 #endif
         private static void StartLogMsgWrite()
         {
@@ -53,25 +60,22 @@ namespace CWJ.AccessibleEditor.DebugSetting
 
             string fileName = DateTime.Now.ToString("yy-MM-dd_HH-mm-ss") + " Logs.txt";
             LogFilePath = PathUtil.GetFilePathPreventOverlap(LogFolderPath, fileName);
-            StreamWriter = new StreamWriter(File.Open(LogFilePath, FileMode.CreateNew, FileAccess.Write, FileShare.Read), encoding: Encoding.UTF8);
-            StreamWriter.AutoFlush = true; //로그 실시간 확인용도.
+            using (new FileStream(LogFilePath, FileMode.CreateNew, FileAccess.Write, FileShare.ReadWrite, 4096, FileOptions.WriteThrough)) 
+            { }
 
-            StrBuilder = new StringBuilder(4096);
-
+            if (LogStrBuilder == null)
+                LogStrBuilder = new StringBuilder();
+            else
+            {
+                WriteLogOnTxt(LogStrBuilder.AppendLine("------------------- Above logs are write before in [SubsystemRegistration] -------------------").ToString());
+                LogStrBuilder.Length = 0;
+            }
             isInit = true;
 
-            if (PrevLogCache != null)
-            {
-                do
-                {
-                    StreamWriter.WriteLine(PrevLogCache.Dequeue());
-                } while (PrevLogCache.Count > 0);
-                PrevLogCache = null;
-                StreamWriter.WriteLine("--Above logs are write before in [BeforeSceneLoad]--\r\n");
-            }
-
             Application.logMessageReceivedThreaded += OnLogMessageReceived;
+
         }
+
 
 
         private const string NonFilledArrow = "▷";
@@ -79,18 +83,30 @@ namespace CWJ.AccessibleEditor.DebugSetting
         private const string DebugTitle = " - Debug.";
         private const string MessageTitle = "\r\n(Ⅰ)Message :\r\n\"";
         private const string StackTraceTitle = "\r\n(Ⅱ)StackTrace :\r\n";
-        private static StringBuilder StrBuilder = null;
+        private static StringBuilder LogStrBuilder = null;
         private static bool isInit = false;
 
         private static void OnLogMessageReceived(string message, string stackTrace, LogType logType)
         {
 #if CWJ_LOG_SAVE
-            StrBuilder.Append(logType.Equals(LogType.Exception) ? FilledArrow : NonFilledArrow).Append(DateTime.Now.ToString("HH:mm:ss")).Append(DebugTitle).Append(logType.ToString());
-            StrBuilder.Append(MessageTitle).Append(message).Append("\"");
-            StrBuilder.Append(StackTraceTitle).Append(stackTrace.TrimEnd()).Append("\r\n");
-            StreamWriter.WriteLine(StrBuilder.ToString());
-            StrBuilder.Length = 0;
+            LogStrBuilder.Append(logType.Equals(LogType.Exception) ? FilledArrow : NonFilledArrow).Append(DateTime.Now.ToString("HH:mm:ss")).Append(DebugTitle).Append(logType.ToString());
+            LogStrBuilder.Append(MessageTitle).Append(message).Append("\"");
+            if (stackTrace != null)
+                LogStrBuilder.Append(StackTraceTitle).Append(stackTrace.TrimEnd()).Append("\r\n");
+            WriteLogOnTxt(LogStrBuilder.ToString());
+            LogStrBuilder.Length = 0;
 #endif
+        }
+
+       static void WriteLogOnTxt(string log)
+        {
+            using (var fs = new FileStream(LogFilePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite, 4096, FileOptions.WriteThrough))
+            {
+                using (TextWriter textWriter = new StreamWriter(fs, Encoding.UTF8, 4096, true))
+                {
+                    textWriter.WriteLine(log);
+                }
+            }
         }
 
         private const string LogWriterSettingFileName = "_LogWriterSetting.ini";
@@ -137,15 +153,12 @@ namespace CWJ.AccessibleEditor.DebugSetting
         private static void StopLogMsgWrite()
         {
             Application.logMessageReceivedThreaded -= OnLogMessageReceived;
-            if (StreamWriter != null)
+            if (LogStrBuilder != null)
             {
-                StreamWriter.Close();
-                StreamWriter = null;
-            }
-            if (StrBuilder != null)
-            {
-                StrBuilder.Clear();
-                StrBuilder = null;
+                if (!isInit)
+                    WriteLogOnTxt(LogStrBuilder.ToString());
+                LogStrBuilder.Length = 0;
+                LogStrBuilder = null;
             }
         }
 #region old code

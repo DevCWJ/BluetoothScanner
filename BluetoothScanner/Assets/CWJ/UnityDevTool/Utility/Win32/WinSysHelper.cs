@@ -34,6 +34,7 @@ namespace CWJ
                 if (_MyProcess == null)
                 {
                     var processes = System.Diagnostics.Process.GetProcessesByName(GetMyAppName());
+                    Debug.LogError(processes.Length);
                     _MyProcess = (processes.Length == 0) ? null : processes[0];
                 }
                 return _MyProcess;
@@ -229,39 +230,50 @@ namespace CWJ
             }
         }
 
+        static System.Threading.Mutex mutex = null;
+        public static bool IsMyProcessExcuted()
+        {
+            if (mutex != null)
+            {
+                return true;
+            }
+            ApplicationQuitEventHelper.StaticLastQuitEvent += () =>
+            {
+                if (mutex != null)
+                    mutex.Dispose();
+            };
+            mutex = new System.Threading.Mutex(true, $"{Application.companyName}_{Application.productName}", out bool isCreatedNew);
+            return !isCreatedNew;
+        }
         /// <summary>
         /// 중복 실행 체크
         /// <para/><see langword="true"/>: overlapped
         /// </summary>
         /// <returns></returns>
-        public static bool IsPreventProcessExecuted(string checkProcessName = null, bool isShowWhenOverlapped = false, bool hasDefaultErrorMsg = false)
+        public static bool IsPreventProcessExecuted(string checkProcessName, bool isShowWhenOverlapped = false, bool hasDefaultErrorMsg = false)
         {
-            string myProcessName = GetMyAppName();
-            checkProcessName = checkProcessName ?? myProcessName;
+            bool isMyProcess = checkProcessName == GetMyAppName();
 
-            var processes = System.Diagnostics.Process.GetProcesses().Where(p =>
+            var processesById = System.Diagnostics.Process.GetProcesses().Where((p) =>
             {
                 if (p == null) return false;
-                var pTmp = p;
+                string pName = null;
                 try
                 {
-                    if ((!p.ProcessName?.Equals(checkProcessName)) ?? false)
-                    {
-                        pTmp = null;
-                    }
+                    pName = p.ProcessName;
                 }
                 catch (Exception e)
                 {
-                    pTmp = null;
+                    pName = null;
                 }
-                return pTmp != null;
-            }).ToArray();
+                return pName != null && pName.Equals(checkProcessName);
+            }).Select(p => (uint)p.Id).ToArray();
 
-            bool isMyProcess = checkProcessName == myProcessName;
-            if (processes.Length > (isMyProcess ? 1 : 0))
+            DebugLogUtil.WriteLogForcibly(processesById.Length+"");
+            if (processesById.Length > (isMyProcess ? 1 : 0))
             {
                 if (isShowWhenOverlapped)
-                    SetWindowTop(isMyProcess ? MyWindowHandleMain : FindWindowHandles((uint)processes[0].Id)[0]);
+                    SetWindowTop(isMyProcess ? MyWindowHandleMain : FindWindowHandles(processesById[0])[0]);
                 if (hasDefaultErrorMsg)
                 {
                     string msg = isMyProcess ? "The program is already running!\n\nPlease check again your task manager."

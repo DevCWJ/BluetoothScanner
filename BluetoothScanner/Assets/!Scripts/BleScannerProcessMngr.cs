@@ -63,11 +63,17 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
     static bool isVerified = false;
 
 
-    private void Awake()
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    private static void StartLogMsgWrite()
     {
-        if (!Application.isEditor)
+        bool isEditor = false;
+
+#if UNITY_EDITOR
+        isEditor = true;
+#endif
+        if (!isEditor)
         {
-            if (WinSysHelper.IsPreventProcessExecuted(isShowWhenOverlapped: false, hasDefaultErrorMsg: false))
+            if (WinSysHelper.IsMyProcessExcuted())
             {
                 UnityEngine.Application.Quit();
                 return;
@@ -91,7 +97,6 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
         if (!Application.isEditor)
         {
             buildFolderPath = WinSysHelper.MyExeFolderPath;
-            Debug.LogError(buildFolderPath);
         }
 
 #if UNITY_EDITOR
@@ -120,7 +125,7 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
 
         commandTxtPath = Path.Combine(exeFolder, ini[Tag_System][Tag_CommandTextFile].ToString());
         if (!File.Exists(commandTxtPath))
-            TextReadOrWriter.CreateText(commandTxtPath);
+            TextReadOrWriter.CreateText(commandTxtPath, FileShare.Write);
         else if (!Application.isEditor)
             UpdateCommandByTxt(commandTxtPath);
 
@@ -129,15 +134,13 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
         fileChangedChecker.fileChangedEvent.AddListener_New(UpdateCommandByTxt);
         fileChangedChecker.InitSystemWatcher(Path.GetDirectoryName(commandTxtPath), Path.GetFileName(commandTxtPath));
 
-        bleScanner.deviceUpdateEvent.AddListener_New(OnDeviceUpdate);
-
         CO_LoopStart = StartCoroutine(IE_LoopStartAndStop());
     }
 
     Coroutine CO_LoopStart = null;
     IEnumerator IE_LoopStartAndStop()
     {
-        var waitForSec = new WaitForSeconds(7.7f);
+        var waitForSec = new WaitForSeconds(3.7f);
         do
         {
             OnCommand_start();
@@ -146,38 +149,25 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
         } while (true);
     }
 
-    Dictionary<string, DeviceCache> deviceCacheById = new Dictionary<string, DeviceCache>();
-
-    bool isDeviceUpdated = false;
-    void OnDeviceUpdate(DeviceCache device)
-    {
-        isDeviceUpdated = true;
-        if (!deviceCacheById.TryGetValue(device.id, out var deviceCache))
-            deviceCacheById.Add(device.id, device);
-        else
-            deviceCacheById[device.id] = device;
-        isDeviceUpdated = false;
-    }
-
     Coroutine CO_WriteBleDevice = null;
     IEnumerator DO_WriteBleDevice()
     {
         TextReadOrWriter.CreateOrWriteText(detectedTxtPath, string.Empty);
-        yield return null;
 
-        var waitForTime = new WaitForSeconds(0.77f);
+        var waitForTime = new WaitForSeconds(0.7f);
 
         do
         {
-            if (isDeviceUpdated)
-                yield return null;
-
-            var devices = deviceCacheById.Values;
-            var deviceNames = devices.Where(device => device.CheckIsVerifiedAndConnectable()).Select(device => device.name);
-
-            TextReadOrWriter.WriteText(detectedTxtPath, $"[{DateTime.Now.ToString("HH:mm:ss")}]" + string.Join(separatorStr, deviceNames));
-
             yield return waitForTime;
+
+            if (CO_WriteBleDevice == null)
+            {
+                break;
+            }
+            var deviceNames = bleScanner.deviceCacheById.Values
+                .Where(device => device.CheckIsVerifiedAndConnectableOnce()).Select(device => device.name);
+            Debug.Log("Count of devices to write: " + deviceNames.Count());
+            TextReadOrWriter.WriteText(detectedTxtPath, $"[{DateTime.Now.ToString("HH:mm:ss")}]" + string.Join(separatorStr, deviceNames));
 
         } while (CO_WriteBleDevice != null);
 
@@ -216,11 +206,11 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
 
         callbackByCmdType[commandType].Invoke();
 
+        TextReadOrWriter.WriteText(commandTxtPath, string.Empty, FileShare.Write);
     }
 
     void OnCommand_start()
     {
-        deviceCacheById.Clear();
         bleScanner.StartScan(isLoopScan: true);
 
         if (CO_WriteBleDevice == null)
@@ -284,6 +274,6 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
         fileChangedChecker.Dispose();
         bleScanner.Dispose();
         if (File.Exists(commandTxtPath))
-            TextReadOrWriter.WriteText(commandTxtPath, string.Empty);
+            TextReadOrWriter.WriteText(commandTxtPath, string.Empty, FileShare.ReadWrite);
     }
 }
