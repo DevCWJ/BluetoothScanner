@@ -48,13 +48,15 @@
         /// Use instead of OnDestroy 
         /// <para>CWJ.SingletonCore</para>
         /// </summary>
-        protected virtual void _OnDestroy(){}
+        protected override void _OnDestroy(){}
 
         /// <summary>
         /// Use instead of OnApplicationQuit 
         /// <para>CWJ.SingletonCore</para>
         /// </summary>
-        protected virtual void _OnApplicationQuit(){}
+        protected override void _OnApplicationQuit(){}
+
+        protected override void OnDispose() { }
         #endregion Use these methods instead of original unity's magic-methods
     }
 }

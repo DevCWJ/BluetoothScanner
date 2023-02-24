@@ -192,6 +192,8 @@ namespace CWJ.AccessibleEditor
 
         #region UNITY_EDITOR
 #if UNITY_EDITOR
+
+
         [UnityEditor.MenuItem("CWJ/Generate UnityDevTool")]
         static void GenerateUnityDevToolPackage()
         {

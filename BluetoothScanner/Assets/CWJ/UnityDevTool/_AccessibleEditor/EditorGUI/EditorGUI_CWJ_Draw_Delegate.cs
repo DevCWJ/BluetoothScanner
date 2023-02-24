@@ -19,11 +19,12 @@ namespace CWJ.AccessibleEditor
         {
             bool tmp = false;
             Type elemType = (isArray ? OnArrayConstructor(type, new object[] { value }, ref tmp).elemType : OnListConstructor(type, new object[] { value }, ref tmp).elemType);
-            return GetDrawVariousTypeDelegate(elemType, name);
+            return GetDrawVariousTypeDelegate(elemType);
         }
 
         private static Dictionary<Type, DrawVariousTypeHandler> VariousTypeDrawerDic = new Dictionary<Type, DrawVariousTypeHandler>()
         {
+            { typeof(System.Object), NULL__DrawLabel_Exception },
             { typeof(bool), Delegate_GetBoolType },
             { typeof(byte), Delegate_GetByteType },
             { typeof(sbyte), Delegate_GetSByteType },
@@ -51,21 +52,22 @@ namespace CWJ.AccessibleEditor
             { typeof(Rect),Delegate_GetRectType },
             { typeof(RectInt),Delegate_GetRectIntType },
             { typeof(LayerMask),Delegate_GetLayerMaskType },
-            { TypeOfCoroutine, null },
-            { typeof(IEnumerator), null }
+            { TypeOfCoroutine, NULL__DrawLabel_Exception },
+            { typeof(IEnumerator), NULL__DrawLabel_Exception }
         };
 
-        public static DrawVariousTypeHandler GetDrawVariousTypeDelegate(Type type, string name)
+        public static DrawVariousTypeHandler GetDrawVariousTypeDelegate(Type type)
         {
             if (VariousTypeDrawerDic.TryGetValue(type, out var drawVariousTypeHandler))
             {
                 return drawVariousTypeHandler;
             }
 
+            drawVariousTypeHandler = null;
+
             // TODO : UnityEvent
             if (TypeOfUnityEventBase.IsAssignableFrom(type) || typeof(Delegate).IsAssignableFrom(type)) 
             {
-                drawVariousTypeHandler = null;
                 //
             }
             else
@@ -90,16 +92,13 @@ namespace CWJ.AccessibleEditor
             }
 
             if (drawVariousTypeHandler == null)
-            {
-                drawVariousTypeHandler = DrawLabel_Exception;
-            }
+                drawVariousTypeHandler = NULL__DrawLabel_Exception;
 
             VariousTypeDrawerDic.Add(type, drawVariousTypeHandler);
 
-
-
             return drawVariousTypeHandler;
         }
+
 
         #region DrawVariousTypeElement
         private static object Delegate_GetBoolType(Type type, string name, object lastValue, ref bool isValueChangedViaCode, int reflectObjInstanceID = 0)
@@ -156,15 +155,13 @@ namespace CWJ.AccessibleEditor
         }
         private static object Delegate_GetTimeSpanType(Type type, string name, object lastValue, ref bool isValueChangedViaCode, int reflectObjInstanceID = 0)
         {
-            TimeSpan prevValue = (TimeSpan)lastValue;
-            TimeSpan newValue;
-            return TimeSpan.TryParse(EditorGUILayout.TextField(name, prevValue.ToString()), out newValue) ? newValue : prevValue;
+            var prevValue = (TimeSpan)lastValue;
+            return TimeSpan.TryParse(EditorGUILayout.TextField(name, prevValue.ToString()), out var newValue) ? newValue : prevValue;
         }
         private static object Delegate_GetDateTimeType(Type type, string name, object lastValue, ref bool isValueChangedViaCode, int reflectObjInstanceID = 0)
         {
-            DateTime prevValue = (DateTime)lastValue;
-            DateTime newValue;
-            return DateTime.TryParse(EditorGUILayout.TextField(name, prevValue.ToString()), out newValue) ? newValue : prevValue;
+            var prevValue = (DateTime)lastValue;
+            return DateTime.TryParse(EditorGUILayout.TextField(name, prevValue.ToString()), out var newValue) ? newValue : prevValue;
         }
         private static object Delegate_GetVector2Type(Type type, string name, object lastValue, ref bool isValueChangedViaCode, int reflectObjInstanceID = 0)
         {
@@ -256,10 +253,10 @@ namespace CWJ.AccessibleEditor
         private static void DrawLabel_Exception(Type type, string name)
         {
             if (type == null) return;
-            EditorGUILayout.LabelField($"{name} ({type.Name} is not supported type)");
+            EditorGUILayout.LabelField($"{name} ({type.FullName} is not supported type)");
         }
 
-        public static object DrawLabel_Exception(Type type, string name, object lastValue, ref bool isValueChangedViaCode, int reflectObjInstanceID = 0)
+        public static object NULL__DrawLabel_Exception(Type type, string name, object lastValue, ref bool isValueChangedViaCode, int reflectObjInstanceID = 0)
         {
             if (type == null) return lastValue;
             DrawLabel_Exception(type, name);

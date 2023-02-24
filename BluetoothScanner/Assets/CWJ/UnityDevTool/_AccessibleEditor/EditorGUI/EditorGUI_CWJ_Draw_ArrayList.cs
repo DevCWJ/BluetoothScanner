@@ -59,7 +59,7 @@ namespace CWJ.AccessibleEditor
             bool isArray = listInfo.isArray;
             Type elemType = listInfo.elemType;
 
-            if (drawElemVariousType == null) drawElemVariousType = GetDrawVariousTypeDelegate(elemType, name);
+            if (drawElemVariousType == null) drawElemVariousType = GetDrawVariousTypeDelegate(elemType);
             if (drawElemVariousType == null) return default(T);
 
             T list = listInfo.list;

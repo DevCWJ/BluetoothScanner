@@ -31,7 +31,7 @@ namespace CWJ.EditorOnly
 		public static int Draw(Rect position, GUIContent label, int value, Type type, float minimumButtonWidth)
 		{
 			var rect = EditorGUI.PrefixLabel(position, label);
-			var flags = TypeHelper.GetAttribute<FlagsAttribute>(type) != null;
+			var flags = CWJ.TypeHelper.GetAttribute<FlagsAttribute>(type) != null;
 			var values = Enum.GetValues(type);
 			var names = Enum.GetNames(type).Select(name => new GUIContent(name)).ToArray();
 

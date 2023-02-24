@@ -1,7 +1,5 @@
 ﻿#if UNITY_EDITOR
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.Reflection;
 
 using UnityEditor;
@@ -19,14 +17,19 @@ namespace CWJ.AccessibleEditor
             //Initialize가 안된 경우
             if (value == null || value.Equals(null))
             {
-                if (type.IsTupleType()) //ValueTuple타입은 null허용 x
+                if (type.IsTupleType()) 
                 {
                     value = ReflectionUtil.TupleCreateInstance(type, value);
                 }
                 else
                 {
-                    EditorGUILayout.LabelField("Initialize " + name + " First!");
-                    return null;
+                    value = TypeHelper.CreateInstance(type);
+                    isValueChangedViaCode = true;
+                    if (value == null)
+                    {
+                        EditorGUI_CWJ.DrawLabel_Exception(type, name);
+                        return null;
+                    }
                 }
             }
 
@@ -52,10 +55,14 @@ namespace CWJ.AccessibleEditor
                     if (fieldInfo.IsAutoPropertyField()) continue;
 
                     Type fieldType = fieldInfo.FieldType;
-                    var variousTypeDrawer = GetDrawVariousTypeDelegate(fieldInfo.FieldType, fieldInfo.Name);
+                    var variousTypeDrawer = GetDrawVariousTypeDelegate(fieldInfo.FieldType);
                     if (variousTypeDrawer == null) continue;
 
-                    DrawVariousFieldTypeWithAtt(fieldInfo, fieldInfo.Name, value, false, variousTypeDrawer);
+                    var result = DrawVariousFieldTypeWithAtt(fieldInfo, fieldInfo.Name, value, false, variousTypeDrawer);
+                    if (!isValueChangedViaCode && result.isChanged)
+                    {
+                        isValueChangedViaCode = true;
+                    }
                 }
                 //var newHashKey = (value.GetHashCode(), name);
                 //FoldoutCacheDict.ChangeHashKey(cacheKey, newHashKey);

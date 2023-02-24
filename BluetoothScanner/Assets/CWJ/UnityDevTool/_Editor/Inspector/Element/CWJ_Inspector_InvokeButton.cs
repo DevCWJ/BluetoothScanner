@@ -10,10 +10,9 @@ using Microsoft.CSharp;
 #if CWJ_EXISTS_EDITORCOROUTINE
 using Unity.EditorCoroutines.Editor;
 #endif
+
 using UnityEditor;
-
 using UnityEngine;
-
 using UnityObject = UnityEngine.Object;
 
 using CWJ.AccessibleEditor;
@@ -37,7 +36,7 @@ namespace CWJ.EditorOnly.Inspector
 
         bool IUseMemberInfo<MethodInfo>.MemberInfoClassifyPredicate(MethodInfo methodInfo)
         {
-            if(isForciblyDrawAllMembers ||
+            if (isForciblyDrawAllMembers ||
                 (!methodInfo.IsDefined(typeof(FoldoutAttribute)) && methodInfo.IsDefined(typeof(InvokeButtonAttribute), true)))
             {
                 var invokeBtnData = GetMethodInvokeBtnData(target, methodInfo);
@@ -53,7 +52,7 @@ namespace CWJ.EditorOnly.Inspector
 
         bool IUseMemberInfo<FieldInfo>.MemberInfoClassifyPredicate(FieldInfo fieldInfo)
         {
-            if((isForciblyDrawAllMembers ||
+            if ((isForciblyDrawAllMembers ||
                 (/*!fieldInfo.IsDefined(typeof(FoldoutAttribute)) &&*/  fieldInfo.IsDefined(typeof(InvokeButtonAttribute), true)))
                 && typeof(UnityEvent).IsAssignableFrom(fieldInfo.FieldType))
             {
@@ -141,7 +140,7 @@ namespace CWJ.EditorOnly.Inspector
         }
 
         public override int drawOrder => 10;
-        
+
         const string VisualizeAllMethods = "Visualize All Methods";
 
         protected override void DrawInspector()
@@ -151,7 +150,7 @@ namespace CWJ.EditorOnly.Inspector
                 if (!isExpand) return;
 
                 ForciblyDrawAllMembersButton(VisualizeAllMethods);
-                
+
                 if (!GetHasMemberToDraw()) return;
 
                 EditorGUILayout.Space(0.7f);
@@ -175,26 +174,71 @@ namespace CWJ.EditorOnly.Inspector
         private Dictionary<int, bool> methodsFoldExpandDict = new Dictionary<int, bool>();
         private Dictionary<int, InvokeBtnData_Method> invokeBtnDataDict_method = new Dictionary<int, InvokeBtnData_Method>();
 
+        public struct ParameterData
+        {
+            public ParameterInfo paramInfo;
+            public Type paramType;
+            public EditorGUI_CWJ.DrawVariousTypeHandler paramDrawHandler;
+            public readonly bool hasParamDrawHandler;
+            public object paramValue;
+            public string paramCode;
+
+            public ParameterData(ParameterInfo parameterInfo, Func<Type, string> getTypeNameFunction = null)
+            {
+                this.paramInfo = parameterInfo;
+                //paramType이 매개변수 in키워드 가 있을땐 Type이름이 바뀌어 문제생기기때문에 paramType까지 캐싱함
+                this.paramType = TypeUtil.GetValidParamType(paramInfo.ParameterType);
+
+                this.paramDrawHandler = EditorGUI_CWJ.GetDrawVariousTypeDelegate(paramType);
+                this.hasParamDrawHandler = paramDrawHandler != null && paramDrawHandler != EditorGUI_CWJ.NULL__DrawLabel_Exception;
+                string paramName = paramInfo.Name;
+                var defaultValue = paramInfo.GetDefaultValue();
+                this.paramValue = defaultValue;
+                if (paramInfo.HasDefaultValue)
+                {
+                    paramName += " = " + defaultValue?.ToString() ?? "Null";
+                }
+
+                string typeName = getTypeNameFunction != null ? getTypeNameFunction(paramType) : paramType.Name;
+                this.paramCode = (string.IsNullOrEmpty(typeName) ? paramType.Name : typeName) + " " + paramName;
+            }
+
+            public void DrawParameter(bool isOnlyButton, ref bool isParamValueChanged)
+            {
+                bool isValueChangedViaCode = false;
+                if (hasParamDrawHandler && isOnlyButton)
+                {
+                    return;
+                }
+                var lastValue = paramValue;
+                var newValue = paramDrawHandler?.Invoke(paramType, paramCode, paramValue, ref isValueChangedViaCode);
+
+                if (isValueChangedViaCode || !TypeUtil.ObjectPowerfulEquals(paramType, lastValue, newValue))
+                {
+                    paramValue = newValue;
+                    if (!isParamValueChanged)
+                        isParamValueChanged = true;
+                }
+            }
+        }
+
         public class InvokeBtnData_Method
         {
             public readonly bool hasData;
             public readonly int methodHashCode;
-            public EditorGUI_CWJ.MemberAttributeCache attributeCache;
+            public readonly EditorGUI_CWJ.MemberAttributeCache attributeCache;
             public readonly string displayName;
             public readonly string tooltip;
-            GUIContent guiContent;
+            readonly GUIContent guiContent;
 
             public readonly bool isCoroutine;
             public readonly string onMarkedBoolName;
             public readonly bool isOnlyButton;
             public readonly bool isNeedUndo;
 
-            public string returnTypeName;
-
-            public ParameterInfo[] parameterInfos;
-            public EditorGUI_CWJ.DrawVariousTypeHandler[] drawParamsHandlers;
-            public string[] paramCodes;
-            private object[] paramValues;
+            public readonly string returnTypeName;
+            public readonly int paramLength;
+            public readonly ParameterData[] parameterDatas;
 
             public InvokeBtnData_Method(UnityObject target, MethodInfo methodInfo, int methodHashCode)
             {
@@ -213,94 +257,74 @@ namespace CWJ.EditorOnly.Inspector
                     return;
                 }
 
-                displayName = methodInfo.Name;
-
                 isCoroutine = typeof(IEnumerator).IsAssignableFrom(methodInfo.ReturnType);
 
                 var attribute = methodInfo.GetCustomAttribute<InvokeButtonAttribute>();
+
                 displayName = attribute?.displayName ?? methodInfo.Name;
 
-                tooltip = attribute?.tooltip ?? $"Click this button to {(isCoroutine ? "start" : "invoke")} '{methodInfo.Name}' ({(isCoroutine ? "Coroutine" : "Method")}).";
-
-                guiContent = new GUIContent(displayName, tooltip);
-
+                isNeedUndo = attribute?.isNeedUndoNSave ?? true;
                 onMarkedBoolName = attribute?.onMarkedBoolName ?? null;
 
-                parameterInfos = methodInfo.GetParameters();
-                int paramLength = parameterInfos.Length;
-                drawParamsHandlers = new EditorGUI_CWJ.DrawVariousTypeHandler[paramLength];
-                paramValues = new object[paramLength];
-                paramCodes = new string[paramLength];
+                var parameterInfos = methodInfo.GetParameters();
+                this.paramLength = parameterInfos.Length;
+                this.parameterDatas = new ParameterData[paramLength];
 
                 using (var provider = new CSharpCodeProvider())
                 {
-                    Func<Type, string> getFriendlyTypeName = (type) =>
+                    string GetFriendlyTypeName(Type t)
                     {
-                        string typeName = type.Name;
-                        if (string.Equals(type.Namespace, "System"))
+                        string typeName = t.Name;
+                        try
                         {
-                            string csFriendlyName = provider.GetTypeOutput(new CodeTypeReference(type));
-                            if (csFriendlyName.IndexOf('.') == -1)
+                            if (string.Equals(t.Namespace, ReflectionUtil.SystemNameSpace))
                             {
-                                typeName = csFriendlyName;
+                                string csFriendlyName = provider.GetTypeOutput(new CodeTypeReference(t));
+                                if (csFriendlyName.IndexOf(ReflectionUtil.Dot) == -1)
+                                {
+                                    typeName = csFriendlyName;
+                                }
                             }
                         }
+                        catch { }
+
                         return typeName;
-                    };
-                    returnTypeName = getFriendlyTypeName(methodInfo.ReturnType);
-
-                    //#error paramType이 매개변수 in키워드 가 있을땐 Type이름이 바뀌어 문제생김 caching할때 paramType까지 할 것
-                    for (int i = 0; i < paramLength; i++)
-                    {
-                        var paramInfo = parameterInfos[i];
-                        Type paramType = TypeUtil.GetValidParamType(paramInfo.ParameterType);
-                        drawParamsHandlers[i] = EditorGUI_CWJ.GetDrawVariousTypeDelegate(paramType, paramInfo.Name);
-                        string paramName = paramInfo.Name;
-                        var defaultValue = paramInfo.GetDefaultValue();
-                        paramValues[i] = defaultValue;
-                        if (paramInfo.HasDefaultValue)
-                        {
-                            paramName += " = " + (defaultValue == null ? "null" : defaultValue.ToString());
-                        }
-
-                        string typeName = getFriendlyTypeName(paramType);
-                        paramCodes[i] = (string.IsNullOrEmpty(typeName) ? paramType.Name : typeName) + " " + paramName;
                     }
 
+                    for (int i = 0; i < paramLength; i++)
+                    {
+                        parameterDatas[i] = new ParameterData(parameterInfos[i], GetFriendlyTypeName);
+                    }
+
+                    returnTypeName = GetFriendlyTypeName(methodInfo.ReturnType);
                 }
 
-                isOnlyButton = (!drawParamsHandlers.IsExists(h => h != null && h != EditorGUI_CWJ.DrawLabel_Exception)) && (attribute?.isOnlyButton ?? true);
-                isNeedUndo = attribute?.isNeedUndo ?? true;
+                isOnlyButton = (attribute?.isOnlyButton ?? true) && (paramLength == 0 || !parameterDatas.IsExists(d => d.hasParamDrawHandler));
+                guiContent = new GUIContent(displayName
+                    , attribute?.tooltip ?? $"Click this button to {(isCoroutine ? "start" : "invoke")} '{methodInfo.Name}' ({(isCoroutine ? "Coroutine" : "Method")}).");
+
                 hasData = true;
             }
 
-            bool isPramValueChanged = false;
+            bool isParamValueChanged = false;
             public void DrawParameters()
             {
-                isPramValueChanged = false;
-                for (int i = 0; i < parameterInfos.Length; ++i)
+                for (int i = 0; i < paramLength; ++i)
                 {
-                    bool isValueChangedViaCode = false;
-                    var paramDrawer = drawParamsHandlers[i];
-                    if (isOnlyButton && paramDrawer == EditorGUI_CWJ.DrawLabel_Exception)
-                    {
-                        continue;
-                    }
-                    var lastValue = paramValues[i];
-                    var newValue = paramDrawer?.Invoke(parameterInfos[i].ParameterType, paramCodes[i], lastValue, ref isValueChangedViaCode);
-                    paramValues[i] = newValue;
-                    if (!isPramValueChanged && (isValueChangedViaCode || lastValue != newValue))
-                        isPramValueChanged = true;
+                    parameterDatas[i].DrawParameter(isOnlyButton, ref isParamValueChanged);
                 }
             }
 
             string lastParamValueStr = null;
             public bool DrawInvokeButton(out string paramValuesStr)
             {
-                if (lastParamValueStr == null || isPramValueChanged)
+                if (lastParamValueStr == null || isParamValueChanged)
                 {
-                    lastParamValueStr = paramValuesStr = string.Join(", ", paramValues.ConvertAll(p => StringUtil.ToReadableString(p)));
-                    guiContent.text = (!isCoroutine ? $"{displayName}({paramValuesStr})" : $"StartCoroutine({displayName}({paramValuesStr}))");
+                    lastParamValueStr = paramValuesStr = string.Join(", ", parameterDatas.ConvertAll(p => StringUtil.ToReadableString(p.paramValue)));
+                    string text = $"{displayName}({paramValuesStr})";
+                    if (isCoroutine) text = $"StartCoroutine({text})";
+                    guiContent.text = text;
+                    isParamValueChanged = false;
                 }
                 else
                     paramValuesStr = lastParamValueStr;
@@ -329,7 +353,7 @@ namespace CWJ.EditorOnly.Inspector
                     }
                 }
 
-                object returnValue = methodInfo.Invoke(target, paramValues);
+                object returnValue = methodInfo.Invoke(target, parameterDatas.ConvertAll(p => p.paramValue));
                 if (returnValue != null)
                 {
                     if (isCoroutine)
@@ -359,7 +383,7 @@ namespace CWJ.EditorOnly.Inspector
 
             int methodHashCode = invokeBtnData.methodHashCode;
 
-            int paramLength = invokeBtnData.paramCodes?.Length ?? 0;
+            int paramLength = invokeBtnData.parameterDatas?.Length ?? 0;
             using (var disabledScope = new EditorGUI.DisabledScope(visualizeInfo.isReadonly))
             {
                 if (!invokeBtnData.isOnlyButton)
@@ -371,7 +395,7 @@ namespace CWJ.EditorOnly.Inspector
                     methodsFoldExpandDict.Add(methodHashCode, isFoldExpand);
                 }
 
-                string foldoutName = $"({invokeBtnData.returnTypeName}) {invokeBtnData.displayName}{(isFoldExpand ? "" : ("(" + string.Join(", ", invokeBtnData.paramCodes) + ")"))}";
+                string foldoutName = $"({invokeBtnData.returnTypeName}) {invokeBtnData.displayName}{(isFoldExpand ? "" : ("(" + string.Join(", ", invokeBtnData.parameterDatas.ConvertAll(p => p.paramCode)) + ")"))}";
 
                 if ((invokeBtnData.isOnlyButton) || (methodsFoldExpandDict[methodHashCode] = EditorGUILayout.Foldout(isFoldExpand, foldoutName, true, EditorGUICustomStyle.Foldout)))
                 {
@@ -386,8 +410,7 @@ namespace CWJ.EditorOnly.Inspector
 
                         try
                         {
-                            string paramValuesStr;
-                            if (invokeBtnData.DrawInvokeButton(out paramValuesStr))
+                            if (invokeBtnData.DrawInvokeButton(out string paramValuesStr))
                             {
                                 if (invokeBtnData.isNeedUndo)
                                 {
@@ -486,7 +509,7 @@ namespace CWJ.EditorOnly.Inspector
 
                 displayName = attribute?.displayName ?? $"<UnityEvent> {fieldInfo.Name}.Invoke()";
                 tooltip = attribute?.tooltip ?? $"Click this button to invoke '{fieldInfo.Name}' (UnityEvent).";
-                isNeedUndo = attribute?.isNeedUndo ?? true;
+                isNeedUndo = attribute?.isNeedUndoNSave ?? true;
                 guiContent = new GUIContent(displayName, tooltip);
 
                 unityEvent = fieldInfo.GetValue(targetObj) as UnityEvent;
@@ -536,7 +559,7 @@ namespace CWJ.EditorOnly.Inspector
         InvokeBtnData_Field GetFieldInvokeBtnData(UnityObject targetObj, FieldInfo fieldInfo)
         {
             if (targetObj == null || fieldInfo == null) return null;
-            
+
             int hashCode = fieldInfo.GetHashCode();
 
             if (invokeBtnDataDict_field.TryGetValue(hashCode, out var invokeBtnData))

@@ -48,8 +48,8 @@ namespace CWJ.EditorOnly.Inspector
         {
             if (isForciblyDrawAllMembers)
             {
-                isAllReadonly = true;
                 isFindAllBaseClass = true;
+                isAllReadonly = !EditorUtil.isCWJDebuggingMode;
             }
             else
             {
@@ -77,7 +77,7 @@ namespace CWJ.EditorOnly.Inspector
                 return false;
             }
 
-            var variousTypeDrawer = EditorGUI_CWJ.GetDrawVariousTypeDelegate(info.PropertyType, info.Name);
+            var variousTypeDrawer = EditorGUI_CWJ.GetDrawVariousTypeDelegate(info.PropertyType);
 
             if (variousTypeDrawer != null)
             {
@@ -115,7 +115,7 @@ namespace CWJ.EditorOnly.Inspector
             propAndVariousTypeDrawerList.Capacity = propAndVariousTypeDrawers.Length;
 
             foldoutContent_root.text = " Visualized Properties " + (GetHasMemberToDraw() ? $"[{usePropertyInfo.memberInfoArray.Length}]" : "");
-            if (!isDrawBodyPart)
+            if (!isDrawBodyPart && foldoutContent_root.image != null)
             {
                 foldoutContent_root.image = null;
             }

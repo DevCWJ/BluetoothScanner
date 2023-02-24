@@ -15,16 +15,28 @@ namespace CWJ.AccessibleEditor
     /// </summary>
     public class BuildEventSystem
     {
-        public static event Action DisplayDialogEvent; //가장먼저 실행됨
+        /// <summary>
+        /// 빌드 버튼 누른직후 실행됨. 
+        /// BuildCancel() 실행시 멈출수있음
+        /// </summary>
+        public static event Action DisplayDialogEvent;
 
-        public static event Action BeforeBuildEvent; //빌드 전에 실행됨. BuildCancel() 실행시 멈출수있음
+        /// <summary>
+        /// 빌드 직전에 실행됨
+        /// </summary>
+        public static event Action BeforeBuildEvent;
 
         public static event Action AfterBuildEvent;
+
+        public static bool IsAutoDateVersion = false;
+        public const string BuildDateFormat = "yy.MM.dd";
+        public const char BuildIndexSeparator = '_';
+
 
         public static bool IsBuilding { get; private set; } = false;
 
          [InitializeOnLoadMethod]
-        public static void InitializeOnLoad()
+        static void InitializeOnLoad()
         {
             BuildPlayerWindow.RegisterBuildPlayerHandler(PreprocessBuildCallback); //빌드콜백 이벤트 추가
         }
@@ -33,13 +45,11 @@ namespace CWJ.AccessibleEditor
 
         private static DateTime buildStartTime;
 
-
-
         /// <summary>
         /// 빌드 파이프라인
         /// </summary>
         /// <param name="option"></param>
-        public static void PreprocessBuildCallback(BuildPlayerOptions option)
+        static void PreprocessBuildCallback(BuildPlayerOptions option)
         {
             IsBuilding = true;
 
@@ -76,7 +86,33 @@ namespace CWJ.AccessibleEditor
 
             DisplayDialogEvent?.Invoke();
 
+            if (!IsBuilding)
+            {
+                return;
+            }
+
             BeforeBuildEvent?.Invoke();
+
+            if (IsAutoDateVersion)
+            {
+                string lastVersion = PlayerSettings.bundleVersion;
+                int buildIndex = 0;
+                var todayStr = DateTime.Today.ToString(BuildDateFormat);
+                if (PlayerSettings.bundleVersion.Contains(BuildIndexSeparator))
+                {
+                    var lastVersionSplit = lastVersion.Split(BuildIndexSeparator);
+                    if (lastVersionSplit.Length == 2 && int.TryParse(lastVersionSplit[1], out buildIndex))
+                    {
+                        if (!todayStr.Equals(lastVersionSplit[0]))
+                            buildIndex = 0;
+                        else
+                            ++buildIndex;
+                    }
+                }
+
+                PlayerSettings.bundleVersion = todayStr + BuildIndexSeparator + buildIndex;
+
+            }
 
             typeof(BuildPipeline).PrintLogWithClassName("Build start!".SetColor(new Color().GetOrientalBlue()), LogType.Log, isComment: false);
 
@@ -84,10 +120,6 @@ namespace CWJ.AccessibleEditor
             //Debug.LogError(bs.BytesToString());
             //UnityEngine.Application.SetStackTraceLogType(LogType.Error, UnityEngine.StackTraceLogType.ScriptOnly);
 
-            if (!IsBuilding)
-            {
-                return;
-            }
 
             EditorCallback.AddWaitForFrameCallback(() =>
             {
@@ -107,13 +139,13 @@ namespace CWJ.AccessibleEditor
             if (!IsBuilding) return;
 
             IsBuilding = false;
-            DisplayDialogUtil.DisplayDialog<BuildPipeline>(("Build was canceled" + (byTheUser ? " by the user" : "")).SetStyle(new Color().GetLightRed(), 18, isViewOneLine: true) +
-            "\n\n" + (string.IsNullOrEmpty(comments) ? "" : ("//" + comments).SetColor(new Color().GetCommentsColor())));
+            DisplayDialogUtil.DisplayDialog<BuildPipeline>(("Build was canceled" + (byTheUser ? " by the user" : string.Empty)).SetStyle(new Color().GetLightRed(), 18, isViewOneLine: true) +
+            "\n\n" + (string.IsNullOrEmpty(comments) ? string.Empty : ("//" + comments).SetColor(new Color().GetCommentsColor())));
             //throw new BuildPlayerWindow.BuildMethodException();
         }
 
         [PostProcessBuild(0)]
-        public static void PostprocessBuildCallback(BuildTarget target, string pathToBuiltProject)
+        static void PostprocessBuildCallback(BuildTarget target, string pathToBuiltProject)
         {
             if (!IsBuilding) return;
 
@@ -123,7 +155,7 @@ namespace CWJ.AccessibleEditor
 
                 string elapsedTime = (DateTime.Now.Subtract(buildStartTime)).TimeSpanToString();
 
-                string buildCompletedMsg = "Build completed!".SetStyle(new Color().GetOrientalBlue(), 18, isViewOneLine: true) +
+                string buildCompletedMsg = $"{Application.companyName}.{Application.productName} ({Application.version})  Build completed!".SetStyle(new Color().GetOrientalBlue(), 18, isViewOneLine: true) +
                     "\n\nTotal elapsed time : " + elapsedTime +
                     "\n\nBuild target : " + target.ToString() +
                     "\n\nBuild path : \n" + pathToBuiltProject +

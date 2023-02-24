@@ -44,7 +44,7 @@ namespace CWJ.SceneHelper
             private set
             {
                 if (isLoading == value) return;
-                if (SingletonHelper.IS_QUIT) return;
+                if (MonoBehaviourEventHelper.IS_QUIT) return;
                 //로딩이미지 표시
                 SceneLoadingManager.Instance.enabled = isLoading = value;
             }

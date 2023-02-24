@@ -1,14 +1,16 @@
-using CWJ;
-using CWJ.Serializable;
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 using UnityEngine;
 using UnityEngine.Events;
+
+using CWJ;
+using CWJ.AccessibleEditor;
+using CWJ.Serializable;
 
 [DisallowMultipleComponent]
 public class BleScannerProcessMngr : DisposableMonoBehaviour
@@ -24,9 +26,11 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
         exit
     }
 
-#if UNITY_EDITOR    
     [SerializeField, Readonly] string editorBuildFilePath;
-    [InvokeButton]
+
+
+#if UNITY_EDITOR    
+    [InvokeButton(isNeedSave:true)]
     void Editor_SetEditorBuildFile()
     {
         PathUtil.OpenFileDialog("Select BuildFile",
@@ -38,8 +42,13 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
                 editorBuildFilePath = path;
         }, UnityEngine.Application.dataPath, "실행파일", "exe");
     }
-#endif
 
+    [UnityEditor.InitializeOnLoadMethod]
+    static void Editor_BuildVersionDate()
+    {
+        BuildEventSystem.IsAutoDateVersion = true;
+    }
+#endif
 
     [SerializeField, ShowConditional(EPlayMode.PlayMode), Readonly] string commandTxtPath;
     [SerializeField, ShowConditional(EPlayMode.PlayMode), Readonly] string detectedTxtPath;
@@ -50,51 +59,27 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
 
     [SerializeField, Readonly] CommandType commandType = CommandType.NULL;
 
-
+    bool isDetectOnlyConnectabled = false;
     string separatorStr;
     const string Tag_System = "SYSTEM PATH AND CONFIGURATION";
-    const string Tag_CommandTextFile = "Command Text File";
-    const string Tag_DetectedTextFile = "Detected Text File";
+    const string Tag_CommandTextFile = "Command File Name";
+    const string Tag_DetectedTextFile = "Detected File Name";
     const string Tag_SeparatorChar = "Separator Char";
     
     [SerializeField]
     DictionaryVisualized<CommandType, UnityEvent> callbackByCmdType = new DictionaryVisualized<CommandType, UnityEvent>();
 
-    static bool isVerified = false;
-
-
-    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    private static void StartLogMsgWrite()
-    {
-        bool isEditor = false;
-
-#if UNITY_EDITOR
-        isEditor = true;
-#endif
-        if (!isEditor)
-        {
-            if (WinSysHelper.IsMyProcessExcuted())
-            {
-                UnityEngine.Application.Quit();
-                return;
-            }
-            WinSysHelper.MinimizeMyWindow();
-        }
-
-        isVerified = true;
-    }
 
     private void Start()
     {
-        if (!isVerified)
+        if (!MonoBehaviourEventHelper.IS_EDITOR && !WinSysHelper.isVerifiedProcess)
         {
             return;
         }
-
         callbackByCmdType.AddCallbackInDictionaryByEnum(this, nameof(OnCommand_quit), enumStartValue: CommandType.quit, separatorChr: '_');
 
         string buildFolderPath = null;
-        if (!Application.isEditor)
+        if (!MonoBehaviourEventHelper.IS_EDITOR)
         {
             buildFolderPath = WinSysHelper.MyExeFolderPath;
         }
@@ -104,70 +89,110 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
 #endif
 
         var exeFolder = buildFolderPath;
-        string iniPath = Path.Combine(exeFolder, "Path.ini");
+        string iniPath = Path.Combine(exeFolder, "BleConfig.ini");
         IniFile ini = new IniFile();
-
+        Debug.Log("ini path : " + iniPath);
         if (!File.Exists(iniPath))
         {
-            ini[Tag_System][Tag_CommandTextFile] = "Command.txt";
-            ini[Tag_System][Tag_DetectedTextFile] = "DetectedNames.txt";
-            ini[Tag_System][Tag_SeparatorChar] = ",";
-
+            ini[Tag_System][Tag_CommandTextFile] = commandTxtPath = "Command.txt";
+            ini[Tag_System][Tag_DetectedTextFile] = detectedTxtPath = "DetectedNames.txt";
+            ini[Tag_System][Tag_SeparatorChar] = separatorStr = ",";
+            ini[Tag_System][nameof(isDetectOnlyConnectabled)] = isDetectOnlyConnectabled = true;
             ini.Save(iniPath, FileMode.Create);
         }
         else
         {
             ini.Load(iniPath);
+            isDetectOnlyConnectabled = ini[Tag_System][nameof(isDetectOnlyConnectabled)].ToBool();
+            separatorStr = ini[Tag_System][Tag_SeparatorChar].ToString();
+            commandTxtPath = ini[Tag_System][Tag_CommandTextFile].ToString();
+            detectedTxtPath = ini[Tag_System][Tag_DetectedTextFile].ToString();
         }
 
+        commandTxtPath = Path.Combine(exeFolder, commandTxtPath);
+        detectedTxtPath = Path.Combine(exeFolder, detectedTxtPath);
 
-        separatorStr = ini[Tag_System][Tag_SeparatorChar].ToString();
-
-        commandTxtPath = Path.Combine(exeFolder, ini[Tag_System][Tag_CommandTextFile].ToString());
         if (!File.Exists(commandTxtPath))
             TextReadOrWriter.CreateText(commandTxtPath, FileShare.Write);
-        else if (!Application.isEditor)
+        else
             UpdateCommandByTxt(commandTxtPath);
 
-        detectedTxtPath = Path.Combine(exeFolder, ini[Tag_System][Tag_DetectedTextFile].ToString());
+        TextReadOrWriter.WriteText(commandTxtPath, string.Empty, FileShare.Write);
+        lastCommandStr = string.Empty;
+        commandType = CommandType.NULL;
+
+        if (!File.Exists(detectedTxtPath))
+            TextReadOrWriter.CreateText(detectedTxtPath);
 
         fileChangedChecker.fileChangedEvent.AddListener_New(UpdateCommandByTxt);
         fileChangedChecker.InitSystemWatcher(Path.GetDirectoryName(commandTxtPath), Path.GetFileName(commandTxtPath));
 
-        CO_LoopStart = StartCoroutine(IE_LoopStartAndStop());
+        verifiedId = new HashSet<string>();
+        bleScanner.deviceUpdatedEvent.AddListener((device, isNew) =>
+        {
+            if (device.CheckIsVerifiedName() 
+                    && (!isDetectOnlyConnectabled || device.CheckIsConnectabledOnce()))
+            {
+                if (verifiedId.Add(device.id))
+                {
+                    Debug.Log($"[ New ] Name: '{device.name}'\n ID: '{device.id}'");
+                }
+            }
+        });
+
+        if (CO_LoopStart == null)
+            CO_LoopStart = StartCoroutine(IE_LoopStartAndStop());
     }
 
-    Coroutine CO_LoopStart = null;
+    HashSet<string> verifiedId;
+
+    static Coroutine CO_LoopStart = null;
     IEnumerator IE_LoopStartAndStop()
     {
         var waitForSec = new WaitForSeconds(3.7f);
+        yield return null;
+
         do
         {
             OnCommand_start();
             yield return waitForSec;
             OnCommand_stop();
-        } while (true);
+            verifiedId.Clear();
+
+        } while (CO_LoopStart != null);
     }
 
-    Coroutine CO_WriteBleDevice = null;
+    static Coroutine CO_WriteBleDevice = null;
+    const string timeFormat = "HH:mm:ss";
+
     IEnumerator DO_WriteBleDevice()
     {
-        TextReadOrWriter.CreateOrWriteText(detectedTxtPath, string.Empty);
-
+        TextReadOrWriter.WriteText(detectedTxtPath, string.Empty);
         var waitForTime = new WaitForSeconds(0.7f);
-
+        int i = 0;
         do
         {
             yield return waitForTime;
 
             if (CO_WriteBleDevice == null)
             {
-                break;
+                yield break;
             }
-            var deviceNames = bleScanner.deviceCacheById.Values
-                .Where(device => device.CheckIsVerifiedAndConnectableOnce()).Select(device => device.name);
-            Debug.Log("Count of devices to write: " + deviceNames.Count());
-            TextReadOrWriter.WriteText(detectedTxtPath, $"[{DateTime.Now.ToString("HH:mm:ss")}]" + string.Join(separatorStr, deviceNames));
+            string combinedNames = string.Empty;
+            string[] deviceNames = new string[0];
+            if (bleScanner.deviceCacheById.Count > 0)
+            {
+                deviceNames = bleScanner.deviceCacheById.Values
+                                .Where(device => device.CheckIsVerifiedName() && (!isDetectOnlyConnectabled || device.CheckIsConnectabledOnce()))
+                                .Select(device => device.name).ToArray();
+
+                combinedNames = string.Join(separatorStr, deviceNames);
+            }
+
+            TextReadOrWriter.WriteText(detectedTxtPath, $"[{DateTime.Now.ToString(timeFormat)}]" + combinedNames);
+
+            Debug.Log($"Try {(++i).ConvertToOrdinal()} : " + deviceNames.Length);
+
 
         } while (CO_WriteBleDevice != null);
 
@@ -181,7 +206,6 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
         if (lastCommandStr != curCommandStr)
         {
             lastCommandStr = curCommandStr;
-            if (curCommandStr.Length == 0)
             {
                 if (commandType != CommandType.NULL)
                     commandType = CommandType.NULL;
@@ -199,7 +223,11 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
             return;
         }
 
-        //change command type start
+        if (CO_LoopStart == null && (newCommandType == CommandType.quit || newCommandType == CommandType.exit))
+        { //실행전, quit이나 exit을 받은경우
+            return;
+        }
+
         commandType = newCommandType;
 
         Debug.Log("[Command] Received : " + commandType.ToString());
@@ -211,7 +239,7 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
 
     void OnCommand_start()
     {
-        bleScanner.StartScan(isLoopScan: true);
+        bleScanner.StartScan();
 
         if (CO_WriteBleDevice == null)
             CO_WriteBleDevice = StartCoroutine(DO_WriteBleDevice());
@@ -264,12 +292,15 @@ public class BleScannerProcessMngr : DisposableMonoBehaviour
 
     protected override void OnDispose()
     {
-        if (!isVerified)
+        if (!WinSysHelper.isVerifiedProcess)
         {
             return;
         }
         if (CO_LoopStart != null)
+        {
             StopCoroutine(CO_LoopStart);
+            CO_LoopStart = null;
+        }
         OnCommand_stop();
         fileChangedChecker.Dispose();
         bleScanner.Dispose();

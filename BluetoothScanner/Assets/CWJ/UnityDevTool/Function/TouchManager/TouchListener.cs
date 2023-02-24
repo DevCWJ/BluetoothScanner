@@ -42,7 +42,7 @@ namespace CWJ
 
         private void OnDisable()
         {
-            if (SingletonHelper.IS_QUIT) return;
+            if (MonoBehaviourEventHelper.IS_QUIT) return;
             TouchManager.Instance?.RemoveTouchListener(this);
             Debug.LogWarning($"{ nameof(TouchManager) }에 { nameof(TouchListener) } 제거");
         }

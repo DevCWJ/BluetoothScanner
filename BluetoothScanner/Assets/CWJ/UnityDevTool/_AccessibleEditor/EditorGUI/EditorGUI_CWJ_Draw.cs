@@ -69,7 +69,7 @@ namespace CWJ.AccessibleEditor
             Type fieldType = fieldInfo.FieldType;
             if (drawVariousType == null)
             { //not supported
-                EditorGUILayout.LabelField($"{name}({fieldType.FullName}) is not supported type");
+                EditorGUI_CWJ.DrawLabel_Exception(fieldType, name);
                 return (false, false, false, null);
             }
 
@@ -106,16 +106,16 @@ namespace CWJ.AccessibleEditor
                     value = drawVariousType(fieldType, name, fieldInfo.GetValue(fieldInfo.IsStatic ? null : targetObj), ref isValueChangedViaCode);
                 }
             }
-
+            bool isValueChanged = isGuiChanged || isValueChangedViaCode;
             if (isAbleToSetValue)
             {
-                if (isGuiChanged || isValueChangedViaCode)
+                if (isValueChanged)
                     fieldInfo.SetValue(targetObj, value);
 
-                attCache.CheckChangedAndCallAttFunc(isGuiChanged, targetObj, fieldInfo);
+                attCache.CheckChangedAndCallAttFunc(isValueChanged, targetObj, fieldInfo);
             }
 
-            return (true, isReadonlyState, isGuiChanged, value);
+            return (true, isReadonlyState, isValueChanged, value);
         }
 
         public static (bool isVisible, bool isReadonly, bool isChanged, object value) DrawVariousPropertyTypeWithAtt(PropertyInfo propertyInfo, string name, UnityObject targetObj, bool hasReadonlySub, DrawVariousTypeHandler drawVariousType)
@@ -123,7 +123,7 @@ namespace CWJ.AccessibleEditor
             Type propType = propertyInfo.PropertyType;
             if (drawVariousType == null)
             { //not supported
-                EditorGUILayout.LabelField($"{name}({propType.FullName}) is not supported type");
+                EditorGUI_CWJ.DrawLabel_Exception(propType, name);
                 return (false, false, false, null);
             }
 

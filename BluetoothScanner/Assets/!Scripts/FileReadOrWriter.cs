@@ -9,7 +9,7 @@ public static class TextReadOrWriter
         {
             using (new FileStream(path, FileMode.Create, FileAccess.ReadWrite, fileShare, 2048, FileOptions.WriteThrough)) { }
         }
-        catch (System.Exception e)
+        catch
         {
 
         }
@@ -40,7 +40,7 @@ public static class TextReadOrWriter
                 }
             }
         }
-        catch (System.Exception e)
+        catch
         {
 
         }
@@ -58,13 +58,13 @@ public static class TextReadOrWriter
         {
             using (var stream = new FileStream(path, FileMode.Open, FileAccess.Read, fileShare))
             {
-                using (var sr = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, 2048, true))
+                using (TextReader sr = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, 2048, true))
                 {
                     return sr.ReadToEnd();
                 }
             }
         }
-        catch (System.Exception e)
+        catch
         {
             return string.Empty;
         }
@@ -90,7 +90,7 @@ public static class TextReadOrWriter
 
             }
         }
-        catch (System.Exception e)
+        catch
         {
 
         }
@@ -120,7 +120,7 @@ public static class TextReadOrWriter
 
             }
         }
-        catch (System.Exception e)
+        catch
         {
 
         }

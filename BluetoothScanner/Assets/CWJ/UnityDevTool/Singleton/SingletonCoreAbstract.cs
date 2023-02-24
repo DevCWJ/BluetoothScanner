@@ -4,7 +4,7 @@ using System.Linq;
 using UnityEngine;
 
 using CWJ.Singleton.OnlyUseNew;
-using static CWJ.SingletonHelper;
+using static CWJ.MonoBehaviourEventHelper;
 
 namespace CWJ.Singleton.Core
 {
@@ -21,6 +21,8 @@ namespace CWJ.Singleton.Core
         protected abstract override void _OnEnable();
         protected abstract override void _OnDisable();
         protected abstract override void _Start();
+        protected abstract override void OnDispose();
+
         protected abstract override void _OnDestroy();
         protected abstract override void _OnApplicationQuit();
         #endregion Use these methods instead of original unity's magic-methods //I had to break the naming convention to declare it with a similar name. ('_')
@@ -127,7 +129,7 @@ namespace CWJ.Singleton.Core
                 if (_instance != null)
                 {
                     (_instance as SingletonCoreAbstract<T>)._isInstance = false;
-                    RemoveSingletonInstanceElem(_instance);
+                    SingletonHelper.RemoveSingletonInstanceElem(_instance);
                 }
 
                 if (value != null)
@@ -147,7 +149,7 @@ namespace CWJ.Singleton.Core
                         insCore.SetDontDestroyOnLoad();
                     }
                     insCore.OnInstanceAssigned();
-                    AddSingletonInstanceElem(value);
+                    SingletonHelper.AddSingletonInstanceElem(value);
                 }
             }
         }
@@ -178,14 +180,14 @@ namespace CWJ.Singleton.Core
         public static readonly System.Type[] IgnoreLogTypes = new Type[]
         {
             typeof(SingletonHelper),
-            typeof(ApplicationQuitEventHelper),
+            typeof(MonoBehaviourEventHelper),
             typeof(AccessibleEditor.DebugSetting.UnityDevConsoleVisible)
         };
 
         public static readonly bool IsIgnoreLogType = IgnoreLogTypes.IsExists(TargetType);
         protected static void CheckValidateForGetInstance()
         {
-            if (SingletonHelper.IS_PLAYING)
+            if (MonoBehaviourEventHelper.IS_PLAYING)
             {
                 if (IS_QUIT)
                 {
@@ -428,7 +430,7 @@ namespace CWJ.Singleton.Core
 
         protected virtual void Awake()
         {
-            AddSingletonAllElem(this);
+            SingletonHelper.AddSingletonAllElem(this);
         }
 
         protected void OnDisable()
@@ -437,22 +439,23 @@ namespace CWJ.Singleton.Core
             if (IS_QUIT) return;
         }
 
-        protected void OnDestroy()
+        protected override sealed void OnDestroy()
         {
-            _OnDestroy();
+            base.OnDestroy();
+
             if (IS_QUIT) return;
 
-            RemoveSingletonAllElem(this);
+            SingletonHelper.RemoveSingletonAllElem(this);
 
             if (HasInstance && _instance == this)
                 _Instance = null;
         }
 
-        protected virtual void OnApplicationQuit()
+        protected override sealed void OnApplicationQuit()
         {
             if (GameObjectName == null)
                 GameObjectName = gameObject.name;
-            _OnApplicationQuit();
+            base.OnApplicationQuit();
         }
 
         /// <summary>

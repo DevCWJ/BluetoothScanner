@@ -20,7 +20,7 @@ namespace CWJ
 
     public static class BuildVersionMngr_Editor
     {
-        [InitializeOnLoadMethod]
+        //[InitializeOnLoadMethod]
         public static void InitializeOnLoad()
         {
             //BuildEventSystem.DisplayDialogEvent += OnBuildEventSystem_DisplayDialog;

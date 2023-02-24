@@ -10,6 +10,13 @@ namespace CWJ
     /// </summary>
     public static class DebugLogUtil
     {
+        public static bool IsLogEnabled =
+#if CWJ_LOG_DISABLED
+            false;
+#else
+            true;
+#endif
+
         public static void WriteLogForcibly(string log)
         {
             CWJ.AccessibleEditor.DebugSetting.DebugLogWriter.WriteLogBeforeSystemLoaded(log);
@@ -26,6 +33,8 @@ namespace CWJ
         {
             classType.PrintLogWithClassName(exception.Message, LogType.Exception, isComment: false, isBigFont: false, obj: obj, isPreventOverlapMsg: isPreventOverlapMsg, isPreventStackTrace: isPreventStackTrace);
         }
+
+        public static Action<bool> SetUnityLoggerEnabled = null;
 
 #if UNITY_EDITOR
         public static readonly HashSet<string> LogPool = new HashSet<string>();
@@ -134,12 +143,18 @@ namespace CWJ
             {
                 if (isAutoHyperLink)
                     ConvertToHyperLinkStr(ref msg);
+
+                if (!IsLogEnabled)
+                    SetUnityLoggerEnabled?.Invoke(true);
                 PrintLogAction.Invoke(msg, obj);
             }
             finally
             {
                 UnityEngine.Application.SetStackTraceLogType(logType, UnityEngine.StackTraceLogType.ScriptOnly);
+                if (!IsLogEnabled)
+                    SetUnityLoggerEnabled?.Invoke(false);
             }
+
         }
 
         const string UnityEditorUIElements = "UnityEditor.UIElements.";

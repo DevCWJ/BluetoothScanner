@@ -47,7 +47,6 @@ namespace CWJ
         static readonly BindingFlags bindingFlags = BindingFlags.Instance | BindingFlags.NonPublic;
         public static readonly FieldInfo F_Calls = T_UnityEventBase.GetField("m_Calls", bindingFlags);
         //static FieldInfo F_NeedsUpdate = null;
-        static FieldInfo F_CallsDirty = null;
         static MethodInfo _M_PrepareInvoke = null;
         static MethodInfo M_PrepareInvoke
         {
@@ -58,6 +57,8 @@ namespace CWJ
                 return _M_PrepareInvoke;
             }
         }
+
+        //static FieldInfo F_CallsDirty = null;
 
         /// <summary>
         /// 현재는 Runtime에 실행 될(UnityEventCallState 기준) UnityEvent 만 가져와짐
@@ -129,9 +130,9 @@ namespace CWJ
                     Debug.LogWarning("경고, 테스트 필수".SetColor(new Color().GetLightRed()) + "(무명메소드 혹은 Invoke()를 담을 경우 AddPersistentListener_Editor가 적용되지 않거나 Remove가 작동하지 않을 수 있습니다)/ 이벤트 기능은 작동할거임 다만, 인스펙터에 표시 안될수도있음\n" /*+ e.ToString()*/);
                 }
             }
-            return;
-#endif
+#else
             unityEvent.AddListener(call);
+#endif
         }
 
         public static void RemoveListener_New<T>(this T unityEvent, UnityAction call) where T : UnityEvent
@@ -158,9 +159,9 @@ namespace CWJ
                 unityEvent.RemoveAllListeners();
         }
 
-        #endregion void
+#endregion void
 
-        #region Generic (T1)
+#region Generic (T1)
 
         /// <summary>
         /// Inspector에서 UnityEvent에 UnityAction이 추가된것을 확인가능하게끔 AddListener를 해주는 함수. <br/>Editor던 Runtime에서든 문제없이 사용가능
@@ -187,8 +188,9 @@ namespace CWJ
                 }
             }
             return;
-#endif
+#else
             unityEvent.AddListener(call);
+#endif
         }
 
         public static void RegistListener_New<T>(this UnityEvent<T> unityEvent, bool isAdd, UnityAction<T> call)
@@ -236,9 +238,9 @@ namespace CWJ
             unityEvent.RemoveListener_New<T>(new UnityAction<T>(systemAction));
         }
 
-        #endregion Generic (T1)
+#endregion Generic (T1)
 
-        #region Generic (T1,T2)
+#region Generic (T1,T2)
 
         /// <summary>
         /// Inspector에서 UnityEvent에 UnityAction이 추가된것을 확인가능하게끔 AddListener를 해주는 함수. <br/>Editor던 Runtime에서든 문제없이 사용가능
@@ -265,8 +267,9 @@ namespace CWJ
                 }
             }
             return;
-#endif
+#else
             unityEvent.AddListener(call);
+#endif
         }
 
         /// <summary>
@@ -306,6 +309,6 @@ namespace CWJ
             genericEvent.RemoveListener_New<T1, T2>(new UnityAction<T1, T2>(systemAction));
         }
 
-        #endregion Generic (T1,T2)
+#endregion Generic (T1,T2)
     }
 }

@@ -24,7 +24,7 @@ namespace CWJ.EditorOnly
 
         public static Type Draw<BaseType>(Rect position, GUIContent label, Type type)
         {
-            var list = TypeHelper.GetTypeList<BaseType>(true);
+            var list = CWJ.TypeHelper.GetTypeList<BaseType>(true);
             var index = list.GetIndex(type);
 
             index = EditorGUI.Popup(position, label, index, list.Names);

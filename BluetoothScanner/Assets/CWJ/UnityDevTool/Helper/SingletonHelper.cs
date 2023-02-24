@@ -34,83 +34,7 @@ namespace CWJ
             awakableInInactives.Remove(awakableInInactive);
         }
 
-#if UNITY_EDITOR
-        public static bool Editor_IsManagedByEditorScript = false;
-        public static bool Editor_IsSilentlyCreateInstance = false;
 
-        [UnityEditor.InitializeOnLoadMethod]
-        public static void InitializeOnLoad()
-        {
-            UnityEditor.EditorApplication.playModeStateChanged += OnPlayModeChanged;
-            CWJ.AccessibleEditor.CWJ_EditorEventHelper.ProjectOpenEvent += EditorEventSystem_ProjectOpenEvent;
-        }
-
-        private static void EditorEventSystem_ProjectOpenEvent()
-        {
-            try
-            {
-                CWJ.AccessibleEditor.ScriptExecutionOrder.SetMonoBehaviourExecutionOrder<SingletonHelper>(-32000);
-            }
-            finally
-            {
-            }
-        }
-
-        protected static void OnPlayModeChanged(UnityEditor.PlayModeStateChange state)
-        {
-            if (state == PlayModeStateChange.ExitingPlayMode)
-            {
-                IS_QUIT = true;
-                IS_PLAYING = false;
-            }
-            if (state == UnityEditor.PlayModeStateChange.EnteredEditMode)
-            {
-                IS_QUIT = false;
-                IS_PLAYING = false;
-            }
-        }
-#endif
-
-
-        [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.AfterAssembliesLoaded)]
-        private static void OnAfterAssembliesLoaded()
-        {
-            IS_PLAYING = true;
-        }
-
-        public static bool IS_PLAYING { get; private set; } = false;
-
-//        public static bool ApplicationIsPlaying
-//        {
-//#if UNITY_EDITOR
-//            get => UnityEditor.EditorApplication.isPlaying;
-//#else
-//            get => Application.isPlaying;
-//#endif
-//        }
-
-        /// <summary>
-        /// OnDisabled, OnDestroy와 같은 곳에선 종료시에도 불릴수있기때문에 IsQuit으로 return처리 해주어야함
-        /// </summary>
-        public static bool IS_QUIT { get; private set; }
-
-
-        /// <summary>
-        /// 실행중 ~ 종료되기전까지 true
-        /// DontDestroyOnLoad는 이게 true일때만 가능
-        /// </summary>
-        public static bool GetIsPlayingBeforeQuit() => IS_PLAYING && !IS_QUIT;
-
-        /// <summary>
-        /// 생성혹은 제거가 가능 할 때
-        /// </summary>
-        public static bool GetIsValidCreateObject() =>
-#if UNITY_EDITOR
-            (!IS_PLAYING || !IS_QUIT);
-#else
-        GetIsPlayingBeforeQuit();
-#endif
-        //
 
         private static List<Component> _AllSingletonComps = new List<Component>();
 
@@ -134,9 +58,9 @@ namespace CWJ
         private static List<Component> _SingletonInstanceComps { get; set; } = new List<Component>();
 
         [VisualizeProperty, Readonly] private List<Component> _singletonInstanceComps { get; set; } = new List<Component>();
-        public Component[] singletonInstanceComps
+        public Component[] GetSingletonInstanceComps()
         {
-            get => _singletonInstanceComps.ToArray();
+            return _singletonInstanceComps.ToArray();
         }
 
         public static void AddSingletonInstanceElem(Component singletonComp)
@@ -154,12 +78,6 @@ namespace CWJ
         private static void OnAfterSceneLoad()
         {
             _UpdateInstance(false);
-        }
-
-        protected override sealed void OnApplicationQuit()
-        {
-            IS_QUIT = true;
-            base.OnApplicationQuit();
         }
 
         protected override void _Awake()

@@ -336,8 +336,9 @@ namespace CWJ
                     && TupleTypes.IsExists(type.GetGenericTypeDefinition());
         }
 
-        public static object TupleCreateInstance(Type type, object obj)
+        public static object TupleCreateInstance(Type type, object target)
         {
+            //ValueTuple타입은 null허용 x
             if (!type.IsTupleType()) return null;
             Type[] genericTypes = type.GetGenericArguments();
 
@@ -345,60 +346,63 @@ namespace CWJ
             object[] values = new object[fieldInfos.Length];
             for (int i = 0; i < values.Length; i++)
             {
-                values[i] = (obj == null ? null : fieldInfos[i].GetValue(obj));
+                values[i] = (target == null ? null : fieldInfos[i].GetValue(target));
             }
 
             return type.GetConstructor(genericTypes)?.Invoke(values);
         }
 
-//        public static string[] ToCsFriendlyTypeNames(this Type[] systemTypes)
-//        {
-//            string[] typeNames = new string[systemTypes.Length];
+        public const string SystemNameSpace = "System";
+        public const string Dot = ".";
 
-//#if CWJ_NET_4_6
-//            //Cannot use C# Dotnet 2.0 without Editor Folder
-//            //using (var provider = new CSharpCodeProvider())
-//            //{
-//            //    for (int i = 0; i < systemTypes.Length; i++)
-//            //    {
-//            //        if (string.Equals(systemTypes[i].Namespace, "System"))
-//            //        {
-//            //            string csFriendlyName = provider.GetTypeOutput(new CodeTypeReference(systemTypes[i]));
-//            //            if (csFriendlyName.IndexOf('.') == -1)
-//            //            {
-//            //                typeNames[i] = csFriendlyName;
-//            //                continue;
-//            //            }
-//            //        }
+        public static string[] ToCsFriendlyTypeNames(this Type[] systemTypes)
+        {
+            string[] typeNames = new string[systemTypes.Length];
 
-//            //        typeNames[i] = systemTypes[i].Name;
-//            //    }
-//            //}
-//#else
-//            //Type csCodeProviderType = GetTypeForcibly("Microsoft.CSharp.CSharpCodeProvider");  
-//            //if (csCodeProviderType == null)
-//            //{
-//            //    return systemTypes.ConvertAll(t => t.Name);
-//            //}
-//            //ConstructorInfo providerCtor = csCodeProviderType.GetConstructor(new Type[] { });
-//            //object providerObj = providerCtor.Invoke(null);
+#if !NET_STANDARD_2_0 && !NET_STANDARD_2_1
+            //Cannot use C# Dotnet 2.0, 2.1 without Editor Folder
+            using (var provider = new Microsoft.CSharp.CSharpCodeProvider())
+            {
+                for (int i = 0; i < systemTypes.Length; i++)
+                {
+                    if (string.Equals(systemTypes[i].Namespace, ReflectionUtil.SystemNameSpace))
+                    {
+                        string csFriendlyName = provider.GetTypeOutput(new System.CodeDom.CodeTypeReference(systemTypes[i]));
+                        if (csFriendlyName.IndexOf(ReflectionUtil.Dot) == -1)
+                        {
+                            typeNames[i] = csFriendlyName;
+                            continue;
+                        }
+                    }
 
-//            //Type codeTypeRefType = GetTypeForcibly("System.CodeDom.CodeTypeReference");
-//            //ConstructorInfo codeTypeRefCtor = codeTypeRefType.GetConstructor(new Type[] { typeof(Type) });
-//            //for (int i = 0; i < systemTypes.Length; i++)
-//            //{
-//            //    object codeTypeRefObj = codeTypeRefCtor.Invoke(new object[] { systemTypes[i] });
-//            //    typeNames[i]= InvokeMethodForcibly(providerObj, true, false, csCodeProviderType, "GetTypeOutput", new object[] { codeTypeRefObj }).ToString();
-//            //}
-//#endif
+                    typeNames[i] = systemTypes[i].Name;
+                }
+            }
+#else
+            Type csCodeProviderType = GetTypeForcibly("Microsoft.CSharp.CSharpCodeProvider");
+            if (csCodeProviderType == null)
+            {
+                return systemTypes.ConvertAll(t => t.Name);
+            }
+            ConstructorInfo providerCtor = csCodeProviderType.GetConstructor(new Type[] { });
+            object providerObj = providerCtor.Invoke(null);
 
-//            return typeNames;
-//        }
+            Type codeTypeRefType = GetTypeForcibly("System.CodeDom.CodeTypeReference");
+            ConstructorInfo codeTypeRefCtor = codeTypeRefType.GetConstructor(new Type[] { typeof(Type) });
+            for (int i = 0; i < systemTypes.Length; i++)
+            {
+                object codeTypeRefObj = codeTypeRefCtor.Invoke(new object[] { systemTypes[i] });
+                typeNames[i] = InvokeMethodForcibly(providerObj, true, false, csCodeProviderType, "GetTypeOutput", new object[] { codeTypeRefObj }).ToString();
+            }
+#endif
 
-        //public static string ToCsFriendlyTypeName(this Type systemType)
-        //{
-        //    return ToCsFriendlyTypeNames(new Type[] { systemType })[0];
-        //}
+            return typeNames;
+        }
+
+        public static string ToCsFriendlyTypeName(this Type systemType)
+        {
+            return ToCsFriendlyTypeNames(new Type[] { systemType })[0];
+        }
 
         //Field만 취급
         /// <summary>

@@ -2,9 +2,9 @@
 {
 #if NET_STANDARD_2_0 || NET_STANDARD_2_1
 #if UNITY_2021_1_OR_NEWER
-#error (Project Settings>Player>Other Settings에 'API Compatibility Level'을 '.Net Framework'로 바꾸셈) UnityDevTool is incapable of compiling source code against the .NET Standard 2.1 API surface. You can change the API Compatibility Level to '.Net Framework' in the Player settings.
+#error (Project Settings>Player>Other Settings 'API Compatibility Level' Set '.Net Framework') UnityDevTool is incapable of compiling source code against the .NET Standard 2.1 API surface. You can change the API Compatibility Level to '.Net Framework' in the Player settings.
 #else
-#error (Project Settings>Player>Other Settings에 'API Compatibility Level'을 '.Net 4.x'로 바꾸셈) UnityDevTool is incapable of compiling source code against the .NET Standard 2.0 API surface. You can change the API Compatibility Level to '.Net 4.x' in the Player settings.
+#error (Project Settings>Player>Other Settings 'API Compatibility Level' Set '.Net 4.x') UnityDevTool is incapable of compiling source code against the .NET Standard 2.0 API surface. You can change the API Compatibility Level to '.Net 4.x' in the Player settings.
 #endif
 #endif
 

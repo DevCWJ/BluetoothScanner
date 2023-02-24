@@ -50,7 +50,7 @@ namespace CWJ
 
         public static GameObject[] GetRootObjsOfDontDestroyOnLoad()
         {
-            return SingletonHelper.GetIsPlayingBeforeQuit() ? SingletonHelper.Instance.gameObject.scene.GetRootGameObjsOnlyValidScene() : new GameObject[0];
+            return MonoBehaviourEventHelper.GetIsPlayingBeforeQuit() ? SingletonHelper.Instance.gameObject.scene.GetRootGameObjsOnlyValidScene() : new GameObject[0];
         }
 
         public static GameObject[] GetRootGameObjsOnlyValidScene(this UnityEngine.SceneManagement.Scene scene)
@@ -64,7 +64,7 @@ namespace CWJ
         {
             if (!includeDontDestroyObj) return;
 
-            includeDontDestroyObj = SingletonHelper.GetIsPlayingBeforeQuit() && !findType.Equals(typeof(SingletonHelper));
+            includeDontDestroyObj = MonoBehaviourEventHelper.GetIsPlayingBeforeQuit() && !findType.Equals(typeof(SingletonHelper));
         }
 
         /// <summary>

@@ -36,23 +36,22 @@ namespace CWJ
             }
             isDesposed = true;
             OnDispose();
-            if (isAutoDestroy && !isDestroyed && !SingletonHelper.IS_QUIT)
+            if (isAutoDestroy && !isDestroyed && !MonoBehaviourEventHelper.IS_QUIT)
             {
-                Debug.LogError(this.GetType().Name);
                 Destroy(this);
             }
         }
 
         protected bool isDestroyed { get; private set; } = false;
         protected virtual void _OnDestroy() { }
-        protected void OnDestroy()
+        protected virtual void OnDestroy()
         {
             isDestroyed = true;
             _OnDestroy();
             Dispose();
         }
         protected virtual void _OnApplicationQuit() { }
-        protected void OnApplicationQuit()
+        protected virtual void OnApplicationQuit()
         {
             _OnApplicationQuit();
             Dispose();

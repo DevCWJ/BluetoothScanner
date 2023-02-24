@@ -20,8 +20,11 @@ namespace CWJ.Singleton
         protected override void _OnEnable() { }
         protected override void _OnDisable() { }
         protected override void _Start() { }
+        protected override void OnDispose() { }
+
         protected override void _OnDestroy() { }
         protected override void _OnApplicationQuit() { }
+
         #endregion Use these methods instead of original unity's magic-methods
 
         public override sealed bool isDontDestroyOnLoad => false;

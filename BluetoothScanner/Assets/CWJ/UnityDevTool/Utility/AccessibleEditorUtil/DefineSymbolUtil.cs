@@ -7,6 +7,7 @@ using CWJ.AccessibleEditor.DebugSetting;
 
 using UnityEditor;
 using UnityEngine;
+using System;
 
 #endif
 

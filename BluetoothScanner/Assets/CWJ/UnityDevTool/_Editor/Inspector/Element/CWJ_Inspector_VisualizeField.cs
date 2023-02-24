@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Reflection;
 using System.Collections.Generic;
-using UnityEditor;
 
 using UnityEngine;
 
@@ -46,8 +45,8 @@ namespace CWJ.EditorOnly.Inspector
         {
             if (isForciblyDrawAllMembers)
             {
-                isAllReadonly = true;
                 isFindAllBaseClass = true;
+                isAllReadonly = !EditorUtil.isCWJDebuggingMode;
             }
             else
             {
@@ -80,7 +79,7 @@ namespace CWJ.EditorOnly.Inspector
                 return false;
             }
 
-            var variousTypeDrawer = EditorGUI_CWJ.GetDrawVariousTypeDelegate(info.FieldType, info.Name);
+            var variousTypeDrawer = EditorGUI_CWJ.GetDrawVariousTypeDelegate(info.FieldType);
 
             if (variousTypeDrawer != null)
             {
@@ -124,7 +123,7 @@ namespace CWJ.EditorOnly.Inspector
             fieldAndVariousTypeDrawerList.Capacity = fieldAndVariousTypeDrawers.Length;
 
             foldoutContent_root.text = " Visualized Fields " + (GetHasMemberToDraw() ? $"[{useFieldInfo.memberInfoArray.Length}]" : "");
-            if (!isDrawBodyPart)
+            if (!isDrawBodyPart && foldoutContent_root.image != null)
             {
                 foldoutContent_root.image = null;
             }
@@ -146,9 +145,9 @@ namespace CWJ.EditorOnly.Inspector
 
                 if (!isAllReadonly) WarningThatNonSerialized();
 
-                foreach (var pd in fieldAndVariousTypeDrawers)
+                foreach (var fieldAndDrawer in fieldAndVariousTypeDrawers)
                 {
-                    DrawNonSerializeFields(pd.fieldInfo, pd.variousTypeDrawer);
+                    DrawNonSerializeFields(fieldAndDrawer.fieldInfo, fieldAndDrawer.variousTypeDrawer);
                 }
             });
         }

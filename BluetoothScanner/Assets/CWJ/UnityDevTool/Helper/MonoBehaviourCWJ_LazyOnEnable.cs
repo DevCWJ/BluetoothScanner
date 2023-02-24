@@ -2,9 +2,9 @@
 
 namespace CWJ
 {
-    public abstract class MonoBehaviourCWJ_LazyOnEnable : MonoBehaviour
+    public abstract class MonoBehaviourCWJ_LazyOnEnable : DisposableMonoBehaviour
     {
-        private bool isInitialized { get; set; } = false;
+        private bool isCallOnEnable { get; set; } = false;
 
         /// <summary>
         /// 상속받는곳에선 OnEnable대신 _OnEnable써주세요 제발!!
@@ -12,7 +12,7 @@ namespace CWJ
         /// </summary>
         protected void OnEnable()
         {
-            if (isInitialized)
+            if (isCallOnEnable)
             {
                 _OnEnable();
             }
@@ -32,9 +32,9 @@ namespace CWJ
         /// </summary>
         protected void Start()
         {
-            if (!isInitialized)
+            if (!isCallOnEnable)
             {
-                isInitialized = true;
+                isCallOnEnable = true;
                 _OnEnable();
             }
 

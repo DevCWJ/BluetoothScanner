@@ -106,7 +106,7 @@ namespace CWJ
             return (isPrefabStage, isPrefabObj);
         }
 
-        [InvokeButton(isNeedUndo:false), ReadonlyConditional(nameof(canUseMissingCompRestore), forPredicateComparison:false)]
+        [InvokeButton(isNeedSave:false), ReadonlyConditional(nameof(canUseMissingCompRestore), forPredicateComparison:false)]
         void RestoreMissingComp()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;

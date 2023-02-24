@@ -1,11 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Runtime.InteropServices.ComTypes;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-
 using UnityEngine;
 
 namespace CWJ.AccessibleEditor.DebugSetting
@@ -88,6 +84,10 @@ namespace CWJ.AccessibleEditor.DebugSetting
 
         private static void OnLogMessageReceived(string message, string stackTrace, LogType logType)
         {
+            if (logType != LogType.Log && logType != LogType.Warning)
+            {
+                UnityEngine.Debug.developerConsoleVisible = false; //exception이 발생되면 자동으로 true가 되어 개발용 Console GUI가 표시됨.
+            }
 #if CWJ_LOG_SAVE
             LogStrBuilder.Append(logType.Equals(LogType.Exception) ? FilledArrow : NonFilledArrow).Append(DateTime.Now.ToString("HH:mm:ss")).Append(DebugTitle).Append(logType.ToString());
             LogStrBuilder.Append(MessageTitle).Append(message).Append("\"");
@@ -120,7 +120,7 @@ namespace CWJ.AccessibleEditor.DebugSetting
 
             bool isSaveLogEnabled = true;
 
-            IniFile ini = new IniFile();
+            var ini = new IniFile();
             if (!File.Exists(settingIniPath))
             {
                 ini[nameof(DebugSetting)][nameof(isSaveLogEnabled)] = isSaveLogEnabled = true;
@@ -135,7 +135,7 @@ namespace CWJ.AccessibleEditor.DebugSetting
 
             if (isSaveLogEnabled)
             {
-                ApplicationQuitEventHelper.Instance.AddAtLastQuitEvent(StopLogMsgWrite);
+                MonoBehaviourEventHelper.LastQuitEvent += StopLogMsgWrite;
             }
             else
             {
@@ -143,7 +143,7 @@ namespace CWJ.AccessibleEditor.DebugSetting
                 File.Delete(LogFilePath);
             }
 
-            if (!Application.isEditor)
+            if (!MonoBehaviourEventHelper.IS_EDITOR)
             {
                 UnityDevConsoleVisible.UpdateInstance();
             }

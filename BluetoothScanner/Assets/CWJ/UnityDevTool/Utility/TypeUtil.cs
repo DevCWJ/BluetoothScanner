@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 
 using UnityEngine;
 
@@ -37,6 +38,8 @@ namespace CWJ
                 ;
         }
 
+        public static readonly Type StringType = typeof(string);
+
         /// <summary>
         /// struct를 찾는 방법. IsValueType = <see langword="true"/>, IsEnum = <see langword="false"/> 이면 Struct다.
         /// Primitive Type 또한 predefined Struct로 생각할 수 있음. 이 경우에는 위에서 다 걸러졌으므로 그냥 쓰면 됨.
@@ -46,7 +49,7 @@ namespace CWJ
         /// </summary>
         /// <param name="type"></param>
         /// <returns></returns>
-        public static bool IsClassOrStructOrTuple(this Type type) => !type.IsPrimitive && !type.IsEnum && (type.IsValueType || (!type.IsArrayOrList() && type.IsClass && type != typeof(UnityEngine.Coroutine)));
+        public static bool IsClassOrStructOrTuple(this Type type) => type != null && type != StringType && !type.IsPrimitive && !type.IsEnum && (type.IsValueType || (!type.IsArrayOrList() && type.IsClass && type != typeof(UnityEngine.Coroutine)));
 
         public static bool IsGenericList(this Type type) => type.IsGenericType && type.GetGenericTypeDefinition() == typeof(List<>);
         public static bool IsHashSet(this Type type) => type.IsGenericType && type.GetGenericTypeDefinition() == typeof(HashSet<>);
@@ -225,6 +228,32 @@ namespace CWJ
                 }
             }
             return null;
+        }
+        public static bool ObjectPowerfulEquals(Type t, object a, object b)
+        {
+            bool isANull = a == null; bool isBNull = b == null;
+
+            if (isANull && isBNull)
+            {
+                return true;
+            }
+            if (isANull != isBNull || !a.Equals(b))
+            {
+                return false;
+            }
+
+            if (t != null && t.IsClassOrStructOrTuple())
+            {
+                foreach (var prop in t.GetProperties(BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public))
+                {
+                    if (!ObjectPowerfulEquals(t, prop.GetValue(a), prop.GetValue(b)))
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
         }
 
         public static System.Type FindType(string typeName, System.Type baseType, bool useFullName = false, bool ignoreCase = false)

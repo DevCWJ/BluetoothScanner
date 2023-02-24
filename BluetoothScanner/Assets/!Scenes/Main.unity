@@ -154,7 +154,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c486795d6f27c654390d6b663f6832e1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  deviceUpdateEvent:
+  deviceCacheById:
+    keyValues: []
+    conflictKeyOriginIndexes: 
+    conflictKeyWarningIndexes: 
+    nullKeyIndexes: 
+  deviceUpdatedEvent:
     m_PersistentCalls:
       m_Calls: []
   targetDeviceEvent:
@@ -193,7 +198,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c4ce211e8fc5b54bb18d2d5accb1464, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  editorBuildFilePath: 
+  editorBuildFilePath: D:/CWJ/UnityProject/BluetoothScanner-master/BluetoothScanner/Build/BluetoothScanner.exe
   commandTxtPath: 
   detectedTxtPath: 
   fileChangedChecker: {fileID: 1925069332}

@@ -57,11 +57,11 @@ namespace CWJ.AccessibleEditor
             var obj = new GameObject("Plz Destroy This Object");
             obj.SetActive(false);
 
-            SingletonHelper.Editor_IsSilentlyCreateInstance = true;
-            SingletonHelper.Editor_IsManagedByEditorScript = true;
+            MonoBehaviourEventHelper.Editor_IsSilentlyCreateInstance = true;
+            MonoBehaviourEventHelper.Editor_IsManagedByEditorScript = true;
             var comp = obj.AddComponent<T>();
-            SingletonHelper.Editor_IsManagedByEditorScript = false;
-            SingletonHelper.Editor_IsSilentlyCreateInstance = false;
+            MonoBehaviourEventHelper.Editor_IsManagedByEditorScript = false;
+            MonoBehaviourEventHelper.Editor_IsSilentlyCreateInstance = false;
 
             if (comp == null)
                 isError = true;

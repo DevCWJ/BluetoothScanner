@@ -9,26 +9,31 @@ namespace CWJ
     [AttributeUsage(AttributeTargets.Method | AttributeTargets.Field)]
     public class InvokeButtonAttribute : Attribute
     {
-        public readonly string aboveFieldName;
+        public readonly bool isNeedUndoNSave;
         public readonly string onMarkedBoolName;
-        public readonly bool isNeedUndo;
         public readonly bool isOnlyButton;
         public readonly string displayName;
         public readonly string tooltip;
+        public readonly string aboveFieldName;
+
 
         /// <summary>
-        /// <param name="onMarkedBoolName"></param>
+        /// 
         /// </summary>
         /// <param name="onMarkedBoolName">이 이름을 가진 bool변수(field/property)를 true로 만듬 (코드를 통해 실행되었을때와 InvokeButtonAttribute를 통해 실행되었을때에 대한 차이점을 만들기위해)</param>
+        /// <param name="isNeedSave">버튼누르면 저장됨 (Undo에도 등록됨)</param>
         /// <param name="isOnlyButton"><see langword="true"/>: foldout으로 숨겨져있지않고 버튼만 표시함.(매개변수가 없어야함)</param>
-        public InvokeButtonAttribute(string aboveFieldName = null, string onMarkedBoolName = null, bool isNeedUndo = false, bool isOnlyButton = true, string displayName = null, string tooltip = null)
+        /// <param name="displayName"></param>
+        /// <param name="tooltip"></param>
+        /// <param name="aboveFieldName"></param>
+        public InvokeButtonAttribute(bool isNeedSave = false, string onMarkedBoolName = null, bool isOnlyButton = true, string displayName = null, string tooltip = null, string aboveFieldName = null)
         {
-            this.aboveFieldName = aboveFieldName;
+            this.isNeedUndoNSave = isNeedSave;
             this.onMarkedBoolName = onMarkedBoolName;
-            this.isNeedUndo = isNeedUndo;
             this.isOnlyButton = isOnlyButton;
             this.displayName = displayName;
             this.tooltip = tooltip;
+            this.aboveFieldName = aboveFieldName;
         }
     }
 }

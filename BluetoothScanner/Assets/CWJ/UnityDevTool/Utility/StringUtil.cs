@@ -6,6 +6,7 @@ using System.Collections;
 using System.Linq;
 
 using UnityEngine;
+using System.Globalization;
 //using Microsoft.CSharp;
 //using System.CodeDom;
 
@@ -503,7 +504,7 @@ namespace CWJ
             }
             else if (type == typeof(RectInt))
             {
-                return ((BoundsInt)obj).ToStringByDetailed();
+                return ((RectInt)obj).ToStringByDetailed();
             }
             else if (type.IsEnum)
             {
@@ -531,6 +532,12 @@ namespace CWJ
             }
             else
             {
+                IFormattable formattable = obj as IFormattable;
+                if (formattable != null)
+                {
+                    return formattable.ToString(null, CultureInfo.InvariantCulture);
+                }
+
                 Debug.LogError(type.Name + " is not supported type");
                 return obj.ToString();
             }

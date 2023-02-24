@@ -1,9 +1,9 @@
 ﻿#if UNITY_EDITOR
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+
 using UnityEngine;
 
 namespace CWJ
@@ -21,7 +21,6 @@ namespace CWJ
 		public int GetIndex(Type type)
 		{
 			var index = Types.IndexOf(type);
-
 			if (HasNone)
 			{
 				if (index >= 0) index += 2; // skip 'None' and separator
@@ -86,7 +85,13 @@ namespace CWJ
 
 		public static T CreateInstance<T>(Type type) where T : class
 		{
-			if (type != null && !type.IsAbstract && typeof(T).IsAssignableFrom(type) && type.GetConstructor(Type.EmptyTypes) != null)
+            if (type == null)
+            {
+                return null;
+            }
+            if (type.IsTupleType())
+                return ReflectionUtil.TupleCreateInstance(type, null) as T;
+			if (IsCreatableAs<T>(type))
 				return Activator.CreateInstance(type) as T;
 
 			return null;
@@ -99,14 +104,27 @@ namespace CWJ
 
 		public static bool IsCreatableAs(Type baseType, Type type)
 		{
-			return baseType.IsAssignableFrom(type) && type.GetConstructor(Type.EmptyTypes) != null;
+			return !type.IsAbstract && baseType.IsAssignableFrom(type) && type.GetConstructor(Type.EmptyTypes) != null;
 		}
 
-		#endregion
+        public static object CreateInstance(Type type)
+        {
+			if (type == null)
+			{
+				return null;
+			}
+			if (type.IsTupleType())
+                ReflectionUtil.TupleCreateInstance(type, null);
+            else if (!type.IsAbstract && type.GetConstructor(Type.EmptyTypes) != null)
+                return Activator.CreateInstance(type);
 
-		#region Listing
+            return null;
+        }
+        #endregion
 
-		public static List<Type> ListDerivedTypes<BaseType>()
+        #region Listing
+
+        public static List<Type> ListDerivedTypes<BaseType>()
 		{
 			return FindTypes(type => IsCreatableAs<BaseType>(type)).ToList();
 		}
